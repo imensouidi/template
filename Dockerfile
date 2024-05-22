@@ -41,11 +41,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install wkhtmltopdf
-RUN wget https://s3.amazonaws.com/shopify-managemant-app/wkhtmltopdf-0.9.9-static-amd64.tar.bz2
-RUN tar xvjf wkhtmltopdf-0.9.9-static-amd64.tar.bz2
-RUN mv wkhtmltopdf-amd64 /usr/local/bin/wkhtmltopdf
-RUN chmod +x /usr/local/bin/wkhtmltopdf
+# Install wkhtmltopdf version 0.12.6
+RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb
+RUN apt install -y ./wkhtmltox_0.12.6-1.bionic_amd64.deb
+RUN rm wkhtmltox_0.12.6-1.bionic_amd64.deb
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
 
