@@ -33,10 +33,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install wkhtmltopdf
-RUN wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb \
-    && dpkg -i wkhtmltox_0.12.6-1.bionic_amd64.deb \
-    && apt-get install -f -y \
-    && rm wkhtmltox_0.12.6-1.bionic_amd64.deb
+RUN apt-get update && apt-get install -y \
+  xvfb \
+  xfonts-100dpi xfonts-75dpi xfonts-scalable xfonts-cyrillic \
+  wkhtmltopdf
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
