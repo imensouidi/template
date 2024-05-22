@@ -14,6 +14,7 @@ COPY . /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libjpeg-turbo8 \
     tesseract-ocr \
     libtesseract-dev \
     poppler-utils \
