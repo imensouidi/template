@@ -13,6 +13,8 @@ from tqdm import tqdm
 import shutil
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from flask_cors import CORS
+from flask_cors import cross_origin
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "https://talentmatch.heptasys.com"}}, allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
