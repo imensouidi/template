@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-base \
     libxrender1 \
     libxext6 \
-    libssl-dev \
+    libssl1.1 \
+    libjpeg-turbo8 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
