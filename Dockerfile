@@ -23,7 +23,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxext6 \
     libssl1.1 \
+    libcairo2-dev \
     libjpeg62-turbo-dev \
+    libpango1.0-dev \
+    libgif-dev \
+    build-essential \
+    g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
