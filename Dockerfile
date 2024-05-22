@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxext6 \
     libssl1.1 \
-    libjpeg-turbo8 \
+    libjpeg62-turbo-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
