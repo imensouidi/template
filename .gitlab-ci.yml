@@ -1,0 +1,43 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  CONTAINER_REGISTRY_NAME: "AIregistryhepta"
+  IMAGE_NAME: "convert"
+
+build:
+  stage: build
+  tags:
+    - Ai-train
+  script:
+    - docker login $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER -u $DOCKER_USERNAME --password $DOCKER_PASSWORD
+    - docker build -t $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA .
+    - docker tag $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+    - docker push $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+  only:
+    - template
+    
+
+deploy:
+  stage: deploy
+  tags:
+    - Ai-train
+  when: manual
+  script:
+    - echo login in azure with a password
+    - |
+      if [ -f "password-${ENV}.crypt" ]; then
+        echo "used password encrypt in artifact for $ENV"
+        openssl enc -d -aes-256-cbc -in password-${ENV}.crypt -out password-${ENV}.out -pass env:SECRET_KEY_FOR_CRYPT_DEPLOY_PASSWORD -iter 100000
+        PASSWORD=$(cat password-${ENV}.out )
+        rm password-${ENV}.out
+      fi
+    - if [ -z "$PASSWORD" ]; then echo "Variables PASSWORD missing ==> job failed." && false ; fi
+    - echo "Logging into Azure..."
+    - echo "Deploying app to Azure Web App..."
+    - az login --service-principal -u $SERVICE_PRINCIPAL_USER -p $PASSWORD --tenant $TENANT_ID  
+    - az containerapp up -n convert-container --image $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA --ingress internal --target-port 5000 --environment containerapps-Environment
+    # - az webapp config container set --name $AZURE_WEBAPP_NAME --resource-group $AZURE_RESOURCE_GROUP --docker-custom-image-name $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appai/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+  only:
+    - template
