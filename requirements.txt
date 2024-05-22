@@ -1,0 +1,11 @@
+python-docx
+flask
+python-dotenv
+PyMuPDF
+Pillow
+pytesseract
+pdfkit
+openai
+tqdm
+azure-identity
+azure-keyvault-secrets
