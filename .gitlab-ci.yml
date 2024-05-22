@@ -37,7 +37,7 @@ deploy:
     - echo "Logging into Azure..."
     - echo "Deploying app to Azure Web App..."
     - az login --service-principal -u $SERVICE_PRINCIPAL_USER -p $PASSWORD --tenant $TENANT_ID  
-    - az containerapp up -n convert-container --image $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA --ingress internal --target-port 5000 --environment containerapps-Environment
+    - az containerapp up -n template-container --image $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appaiv2/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA --ingress external --target-port 5000 --environment containerapps-Environment
     # - az webapp config container set --name $AZURE_WEBAPP_NAME --resource-group $AZURE_RESOURCE_GROUP --docker-custom-image-name $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/appai/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
   only:
     - template
