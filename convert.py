@@ -14,6 +14,8 @@ import shutil
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "https://talentmatch.heptasys.com"}}, allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
 
 # Azure Key Vault details
 key_vault_name = 'AI-vault-hepta'
@@ -114,9 +116,9 @@ def copy_image_to_output_dir(image_path, output_dir):
         print(f"Error copying image: {e}")
         return False
 
-app = Flask(__name__)
 
-@app.route('/upload', methods=['POST'])
+@app.route('/template', methods=['POST'])
+@cross_origin()
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
