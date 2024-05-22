@@ -9,3 +9,4 @@ openai
 tqdm
 azure-identity
 azure-keyvault-secrets
+flask_cors==3.0.10
