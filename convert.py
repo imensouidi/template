@@ -33,8 +33,8 @@ reformulate_deployment = 'IndexSelector'
 insert_deployment = 'IndexSelector'
 openai_client = AzureOpenAI(api_key=azure_api_key, api_version="2024-02-15-preview", azure_endpoint=azure_endpoint)
 
-# Configure pdfkit to point to your wkhtmltopdf installation
-path_to_wkhtmltopdf = os.getenv("PATH_TO_WKHTMLTOPDF")
+# Ensure the correct path to wkhtmltopdf
+path_to_wkhtmltopdf = '/usr/local/bin/wkhtmltopdf'
 config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)
 
 def extract_text(file_path):
