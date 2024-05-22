@@ -11,10 +11,9 @@ WORKDIR /app
 
 # Copy the current directory contents into the container at /app
 COPY . /app
-
+RUN sudo apt -y install libjpeg62-turbo-dev
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libjpeg-turbo8 \
     tesseract-ocr \
     libtesseract-dev \
     poppler-utils \
@@ -44,11 +43,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install wkhtmltopdf
-RUN wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb \
-    && dpkg -i wkhtmltox_0.12.6-1.bionic_amd64.deb \
-    && apt-get install -f -y \
-    && rm wkhtmltox_0.12.6-1.bionic_amd64.deb
-
+RUN wget https://s3.amazonaws.com/shopify-managemant-app/wkhtmltopdf-0.9.9-static-amd64.tar.bz2
+RUN tar xvjf wkhtmltopdf-0.9.9-static-amd64.tar.bz2
+RUN mv wkhtmltopdf-amd64 /usr/local/bin/wkhtmltopdf
+RUN chmod +x /usr/local/bin/wkhtmltopdf
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
 
