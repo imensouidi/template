@@ -1,5 +1,5 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.11-slim
+# Use the official Python image from the Docker Hub based on Debian Buster
+FROM python:3.9-buster
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -23,11 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxext6 \
     libssl1.1 \
-    libjpeg-turbo8 \
+    libjpeg62-turbo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install wkhtmltopdf from the official packaging repository
+# Install wkhtmltopdf
 RUN wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb \
     && dpkg -i wkhtmltox_0.12.6-1.bionic_amd64.deb \
     && apt-get install -f -y \
