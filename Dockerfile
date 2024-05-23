@@ -1,3 +1,4 @@
+[12:05 PM] Iheb Ghazala
 # Use the official Python image from the Docker Hub based on Debian Buster
 FROM python:3.9-buster
  
@@ -40,14 +41,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-cyrillic \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
- 
 
-RUN apt-get update && apt-get install -yq gdebi
 
-RUN TEMP_DEB="$(mktemp).deb" \
-  && wget -O "$TEMP_DEB" 'https://github.com/wkhtmltopdf/packaging/releases/download/0.12.1.4-2/wkhtmltox_0.12.1.4-2.bionic_amd64.deb' \
-  && apt install -yqf "$TEMP_DEB" \
-  && rm -f "$TEMP_DEB"
+# Install wkhtmltopdf
+RUN wget https://s3.amazonaws.com/shopify-managemant-app/wkhtmltopdf-0.12.6-1-static-amd64.tar.bz2
+RUN tar xvjf wkhtmltopdf-0.12.6-1-static-amd64.tar.bz2
+RUN mv wkhtmltopdf-amd64 /usr/local/bin/wkhtmltopdf
+RUN chmod +x /usr/local/bin/wkhtmltopdf
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
  
