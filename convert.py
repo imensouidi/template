@@ -13,11 +13,7 @@ from tqdm import tqdm
 import shutil
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from flask_cors import CORS
-from flask_cors import cross_origin
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "https://talentmatch.heptasys.com"}}, allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
 
 # Azure Key Vault details
 key_vault_name = 'AI-vault-hepta'
@@ -37,8 +33,8 @@ reformulate_deployment = 'IndexSelector'
 insert_deployment = 'IndexSelector'
 openai_client = AzureOpenAI(api_key=azure_api_key, api_version="2024-02-15-preview", azure_endpoint=azure_endpoint)
 
-# Ensure the correct path to wkhtmltopdf
-path_to_wkhtmltopdf = '/usr/local/bin/wkhtmltopdf'
+# Configure pdfkit to point to your wkhtmltopdf installation
+path_to_wkhtmltopdf = os.getenv("PATH_TO_WKHTMLTOPDF")
 config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)
 
 def extract_text(file_path):
@@ -95,11 +91,8 @@ def save_html_to_file(html_content, output_file):
 
 def convert_html_to_pdf(html_file, pdf_file):
     try:
-        # Ensure wkhtmltopdf executable is specified
-        config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)
-        options = {
-            'enable-local-file-access': ''
-        }
+        # Removed 'enable-local-file-access' from options
+        options = {}
         pdfkit.from_file(html_file, pdf_file, configuration=config, options=options)
         return True
     except Exception as e:
@@ -118,9 +111,9 @@ def copy_image_to_output_dir(image_path, output_dir):
         print(f"Error copying image: {e}")
         return False
 
+app = Flask(__name__)
 
-@app.route('/template', methods=['POST'])
-@cross_origin()
+@app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
@@ -130,6 +123,8 @@ def upload_file():
 
     file_path = os.path.join("uploads", file.filename)
     file.save(file_path)
+
+    image_path = os.path.join("/app", "background.png")
 
     text = extract_text(file_path)
     if not text:
