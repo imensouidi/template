@@ -36,6 +36,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qtbase5-dev \
     qtbase5-dev-tools \
     libqt5webkit5-dev \
+    qttools5-dev-tools \
+    libqt5svg5-dev \
+    libqt5xmlpatterns5-dev-tools \
     xvfb \
     xfonts-100dpi \
     xfonts-scalable \
