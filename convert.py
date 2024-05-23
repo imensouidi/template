@@ -65,7 +65,7 @@ def reformulate_text(text):
         return None
 
 def insert_text_into_template(structured_data, image_url):
-    prompt = f"""Insert the following structured data into the HTML template that has variables for each section and generate the exact same template with the structured data inserted GENERATE ONLY THE FILLED TEMPLATE :
+    prompt = f"""Insert the following structured data into the HTML template that has variables for each section and generate the exact same template with the structured data inserted. GENERATE ONLY THE FILLED TEMPLATE:
 
 Structured Data:
 {structured_data}
@@ -77,13 +77,13 @@ Template:
     <meta charset="UTF-8">
     <title>CV with Background Banner</title>
     <style>
-        body {
+        body {{
             font-family: 'Open Sans', sans-serif;
             margin: 0;
             padding: 0;
             background: white;
-        }
-        .banner {
+        }}
+        .banner {{
             background-image: url('{image_url}');
             background-size: cover;
             background-position: center;
@@ -91,64 +91,64 @@ Template:
             color: white;
             position: relative;
             top: 0;
-        }
-        .job-title {
+        }}
+        .job-title {{
             font-size: 20pt;
             font-weight: bold;
             text-align: center;
             padding-top: 50px;
-        }
-        .contact-strip {
+        }}
+        .contact-strip {{
             background-color: #01cdb1;
             height: 30px;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        .contact-info {
+        }}
+        .contact-info {{
             font-size: 10pt;
             display: flex;
             justify-content: center;
             gap: 10px;
             color: black;
-        }
-        .contact-icon {
+        }}
+        .contact-icon {{
             margin-right: 3px;
-        }
-        .section {
+        }}
+        .section {{
             font-family: 'Open Sans', sans-serif;
             margin-top: 20px;
             padding: 0 20px;
             background: white;
-        }
-        .section-title {
+        }}
+        .section-title {{
             text-align: center;
             color: #01cdb1;
             font-size: 20pt;
             margin: 30px 0;
-        }
-        .section-content {
+        }}
+        .section-content {{
             color: #050b24;
             padding-bottom: 20px;
-        }
-        .company-name {
+        }}
+        .company-name {{
             float: right;
             margin-right: 50px;
-        }
+        }}
         .date-range,
         .tasks,
         .mission,
-        .tech-tools {
+        .tech-tools {{
             margin-left: 50px;
-        }
-        .sub-section {
+        }}
+        .sub-section {{
             margin-top: 20px;
-        }
-        .sub-section-title {
+        }}
+        .sub-section-title {{
             font-size: 16pt;
             font-weight: bold;
             color: #01cdb1;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -209,7 +209,6 @@ Template:
     except Exception as e:
         print(f"Error in generating completion: {e}")
         return None
-
 
 def save_html_to_file(html_content, output_file):
     try:
