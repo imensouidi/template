@@ -1,23 +1,18 @@
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS, cross_origin
 import os
 import time
 import fitz  # PyMuPDF
 from docx import Document
 from PIL import Image
 import pytesseract
-from flask import Flask, request, jsonify, send_file
 from dotenv import load_dotenv
 import datetime
 import pdfkit
 from openai import AzureOpenAI
-from tqdm import tqdm
 import shutil
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from flask_cors import CORS
-from flask_cors import cross_origin
-
-
-
 
 # Azure Key Vault details
 key_vault_name = 'AI-vault-hepta'
@@ -57,7 +52,7 @@ def extract_text(file_path):
         return None
 
 def reformulate_text(text):
-    prompt = f"take a deep breath,Extract from the following text these information in the form of a list: full name, job title, years of experience(based on the date range or ranges), phone, email, website, tech tools, tasks, mission or missions, date range or ranges, company name or names.\n\n{text}"
+    prompt = f"Extract from the following text these information in the form of a list: full name, job title, years of experience(based on the date range or ranges), phone, email, website, tech tools, tasks, mission or missions, date range or ranges, company name or names.\n\n{text}"
     try:
         response = openai_client.completions.create(
             model=reformulate_deployment,
@@ -70,9 +65,140 @@ def reformulate_text(text):
         return None
 
 def insert_text_into_template(structured_data, image_url):
-    prompt = f"""take a deep breath,Insert INTELLIGENTLY ONLY the following structured data into the HTML template that has variables for each section generate the exact same template with the structured data inserted,you find places for them,FOLLOW THE TEMPLATE:\n\nStructured Data:\n{structured_data}\n\nTemplate:
-<!-- HTML template part skipped for brevity -->
-    """
+    prompt = f"""Insert the following structured data into the HTML template that has variables for each section and generate the exact same template with the structured data inserted GENERATE ONLY THE FILLED TEMPLATE :
+
+Structured Data:
+{structured_data}
+
+Template:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CV with Background Banner</title>
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: white;
+        }
+        .banner {
+            background-image: url('{image_url}');
+            background-size: cover;
+            background-position: center;
+            height: 235px;
+            color: white;
+            position: relative;
+            top: 0;
+        }
+        .job-title {
+            font-size: 20pt;
+            font-weight: bold;
+            text-align: center;
+            padding-top: 50px;
+        }
+        .contact-strip {
+            background-color: #01cdb1;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .contact-info {
+            font-size: 10pt;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            color: black;
+        }
+        .contact-icon {
+            margin-right: 3px;
+        }
+        .section {
+            font-family: 'Open Sans', sans-serif;
+            margin-top: 20px;
+            padding: 0 20px;
+            background: white;
+        }
+        .section-title {
+            text-align: center;
+            color: #01cdb1;
+            font-size: 20pt;
+            margin: 30px 0;
+        }
+        .section-content {
+            color: #050b24;
+            padding-bottom: 20px;
+        }
+        .company-name {
+            float: right;
+            margin-right: 50px;
+        }
+        .date-range,
+        .tasks,
+        .mission,
+        .tech-tools {
+            margin-left: 50px;
+        }
+        .sub-section {
+            margin-top: 20px;
+        }
+        .sub-section-title {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #01cdb1;
+        }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <div class="job-title">
+            Job Title: {{ job_title }}<br>
+            Full Name: {{ full_name }}<br>
+            Years of Experience: {{ years_of_experience }}<br>
+        </div>
+    </div>
+    <div class="contact-strip">
+        <div class="contact-info">
+            <div>
+                <span class="contact-icon">📞</span> {{ phone }}
+            </div>
+            <div>
+                <span class="contact-icon">✉️</span> {{ email }}
+            </div>
+            <div>
+                <span class="contact-icon">🌐</span> {{ website }}
+            </div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="section-title">Compétences techniques</div>
+        <div class="section-content">
+            {{ competences_techniques }}
+        </div>
+    </div>
+    <div class="section">
+        <div class="section-title">Formations</div>
+        <div class="section-content">
+            {{ formations }}
+        </div>
+    </div>
+    <div class="section">
+        <div class="section-title">Expériences professionnelles</div>
+        <div class="section-content">
+            <div class="company-name">{{ company_name }}</div>
+            <div class="date-range">{{ date_range }}</div>
+            <ul>
+                <li class="tasks">{{ tasks }}</li>
+                <li class="mission">{{ mission }}</li>
+            </ul>
+            <div class="tech-tools">{{ tech_tools }}</div>
+        </div>
+    </div>
+</body>
+</html>
+"""
     try:
         response = openai_client.completions.create(
             model=insert_deployment,
@@ -83,6 +209,7 @@ def insert_text_into_template(structured_data, image_url):
     except Exception as e:
         print(f"Error in generating completion: {e}")
         return None
+
 
 def save_html_to_file(html_content, output_file):
     try:
@@ -120,10 +247,7 @@ CORS(app, resources={r"/*": {"origins": "https://talentmatch.heptasys.com"}}, al
 
 @app.route('/template', methods=['POST'])
 @cross_origin()
-
-@app.route('/template', methods=['POST'])
-@cross_origin()
-def upload_file():
+def upload_template():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
     file = request.files['file']
@@ -163,7 +287,7 @@ def upload_file():
         if not convert_html_to_pdf(output_file, pdf_file):
             return jsonify({"error": "Failed to convert HTML to PDF"}), 500
 
-        return send_file(pdf_file, as_attachment=True, attachment_filename=os.path.basename(pdf_file), mimetype='application/pdf')
+        return send_file(pdf_file, as_attachment=True, download_name=os.path.basename(pdf_file), mimetype='application/pdf')
     else:
         return jsonify({"error": "Failed to copy the image"}), 500
 
