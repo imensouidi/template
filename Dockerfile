@@ -43,10 +43,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install wkhtmltopdf from the correct source
-RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb \
-    && dpkg -i wkhtmltox_0.12.6-1.bionic_amd64.deb \
-    && apt-get install -f -y \
-    && rm wkhtmltox_0.12.6-1.bionic_amd64.deb
+RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/archive/refs/tags/0.12.1.tar.gz \
+    && tar xzvf 0.12.1.tar.gz \
+    && cd wkhtmltopdf-0.12.1 \
+    && qmake-qt5 wkhtmltopdf.pro \
+    && make \
+    && make install \
+    && cd .. \
+    && rm -rf wkhtmltopdf-0.12.1 0.12.1.tar.gz
 
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
