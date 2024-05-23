@@ -13,6 +13,10 @@ from tqdm import tqdm
 import shutil
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from flask_cors import CORS
+from flask_cors import cross_origin
+
+
 
 
 # Azure Key Vault details
@@ -112,8 +116,11 @@ def copy_image_to_output_dir(image_path, output_dir):
         return False
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "https://talentmatch.heptasys.com"}}, allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
 
-@app.route('/upload', methods=['POST'])
+@app.route('/template', methods=['POST'])
+@cross_origin()
+
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
