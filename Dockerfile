@@ -39,14 +39,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-100dpi \
     xfonts-scalable \
     xfonts-cyrillic \
+    qt5-qmake \
+    qtbase5-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install wkhtmltopdf from the correct source
+# Install wkhtmltopdf from tarball
 RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/archive/refs/tags/0.12.1.tar.gz \
     && tar xzvf 0.12.1.tar.gz \
     && cd wkhtmltopdf-0.12.1 \
-    && qmake-qt5 wkhtmltopdf.pro \
+    && qmake wkhtmltopdf.pro \
     && make \
     && make install \
     && cd .. \
