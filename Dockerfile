@@ -46,7 +46,7 @@ RUN apt-get update && apt-get install -yq gdebi
 
 RUN TEMP_DEB="$(mktemp).deb" \
   && wget -O "$TEMP_DEB" 'https://github.com/wkhtmltopdf/packaging/releases/download/0.12.1.4-2/wkhtmltox_0.12.1.4-2.bionic_amd64.deb' \
-  && sudo apt install -yqf "$TEMP_DEB" \
+  && apt install -yqf "$TEMP_DEB" \
   && rm -f "$TEMP_DEB"
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
