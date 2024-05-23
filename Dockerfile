@@ -1,16 +1,17 @@
 # Use the official Python image from the Docker Hub based on Debian Buster
 FROM python:3.9-buster
- 
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PATH_TO_WKHTMLTOPDF=/usr/local/bin/wkhtmltopdf \
     TESSERACT_PATH=/usr/bin/tesseract
- 
+
 # Set the working directory in the container
 WORKDIR /app
- 
+
 # Copy the current directory contents into the container at /app
 COPY . /app
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
@@ -41,22 +42,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install wkhtmltopdf from tarball
+RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb \
+    && dpkg -i wkhtmltox_0.12.6-1.bionic_amd64.deb \
+    && apt-get install -f -y \
+    && rm wkhtmltox_0.12.6-1.bionic_amd64.deb
 
-# Install wkhtmltopdf
-RUN wget https://s3.amazonaws.com/shopify-managemant-app/wkhtmltopdf-0.12.6-1-static-amd64.tar.bz2
-RUN tar xvjf wkhtmltopdf-0.12.6-1-static-amd64.tar.bz2
-RUN mv wkhtmltopdf-amd64 /usr/local/bin/wkhtmltopdf
-RUN chmod +x /usr/local/bin/wkhtmltopdf
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
- 
+
 # Install Python dependencies
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
- 
+
 # Expose the port the app runs on
 EXPOSE 5000
- 
+
 # Run the application
 CMD ["python", "convert.py"]
- 
