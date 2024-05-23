@@ -1,4 +1,3 @@
-[12:05 PM] Iheb Ghazala
 # Use the official Python image from the Docker Hub based on Debian Buster
 FROM python:3.9-buster
  
