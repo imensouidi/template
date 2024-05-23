@@ -50,14 +50,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV QT_SELECT=qt5
 
 # Install wkhtmltopdf from tarball
-RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/archive/refs/tags/0.12.1.tar.gz \
-    && tar xzvf 0.12.1.tar.gz \
-    && cd wkhtmltopdf-0.12.1 \
-    && qmake wkhtmltopdf.pro \
-    && make \
-    && make install \
-    && cd .. \
-    && rm -rf wkhtmltopdf-0.12.1 0.12.1.tar.gz
+RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/archive/refs/tags/0.12.1.tar.gz
+RUN tar xvjf 0.12.1.tar.gz
+RUN mv 0.12.1.tar /usr/local/bin/wkhtmltopdf
+RUN chmod +x /usr/local/bin/wkhtmltopdf
 
 # Verify wkhtmltopdf installation
 RUN which wkhtmltopdf
