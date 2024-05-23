@@ -121,6 +121,8 @@ CORS(app, resources={r"/*": {"origins": "https://talentmatch.heptasys.com"}}, al
 @app.route('/template', methods=['POST'])
 @cross_origin()
 
+@app.route('/template', methods=['POST'])
+@cross_origin()
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
@@ -161,7 +163,7 @@ def upload_file():
         if not convert_html_to_pdf(output_file, pdf_file):
             return jsonify({"error": "Failed to convert HTML to PDF"}), 500
 
-        return send_file(pdf_file, as_attachment=True)
+        return send_file(pdf_file, as_attachment=True, attachment_filename=os.path.basename(pdf_file), mimetype='application/pdf')
     else:
         return jsonify({"error": "Failed to copy the image"}), 500
 
