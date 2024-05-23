@@ -32,15 +32,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfontconfig1 \
     fontconfig \
     libfontconfig1-dev \
-    libqt5core5a \
-    libqt5gui5 \
-    libqt5widgets5 \
+    qt5-qmake \
+    qtbase5-dev \
+    qtbase5-dev-tools \
     xvfb \
     xfonts-100dpi \
     xfonts-scalable \
     xfonts-cyrillic \
-    qt5-qmake \
-    qtbase5-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
