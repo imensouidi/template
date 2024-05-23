@@ -1,4 +1,3 @@
-[12:05 PM] Iheb Ghazala
 # Use the official Python image from the Docker Hub based on Debian Buster
 FROM python:3.9-buster
  
@@ -43,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
  
 
-    RUN apt-get update && apt-get install -yq gdebi
+RUN apt-get update && apt-get install -yq gdebi
 
 RUN TEMP_DEB="$(mktemp).deb" \
   && wget -O "$TEMP_DEB" 'https://github.com/wkhtmltopdf/packaging/releases/download/0.12.1.4-2/wkhtmltox_0.12.1.4-2.bionic_amd64.deb' \
