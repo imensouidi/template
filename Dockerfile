@@ -35,12 +35,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qt5-qmake \
     qtbase5-dev \
     qtbase5-dev-tools \
+    libqt5webkit5-dev \
     xvfb \
     xfonts-100dpi \
     xfonts-scalable \
     xfonts-cyrillic \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Set Qt environment variables
+ENV QT_SELECT=qt5
 
 # Install wkhtmltopdf from tarball
 RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/archive/refs/tags/0.12.1.tar.gz \
