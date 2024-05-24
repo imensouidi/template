@@ -228,12 +228,7 @@ def save_html_to_file(html_content, output_file):
 
 def convert_html_to_pdf(html_file, pdf_file):
     try:
-        options = {
-            'enable-local-file-access': None,  # Ensure local file access
-            'page-size': 'A4',
-            'encoding': "UTF-8",
-            'no-outline': None
-        }
+        options = {}
         pdfkit.from_file(html_file, pdf_file, configuration=config, options=options)
         return True
     except Exception as e:
@@ -305,3 +300,4 @@ def upload_template():
 if __name__ == "__main__":
     os.makedirs("uploads", exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
+
