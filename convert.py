@@ -236,14 +236,6 @@ def save_html_to_file(html_content, output_file):
 def convert_html_to_pdf(html_file, pdf_file):
     try:
         options = {
-            'allow': os.path.dirname(html_file),  # Allow the folder containing the HTML file
-            'page-size': 'A4',
-            'encoding': "UTF-8",
-            'no-outline': None,  # No outline around the text
-            'margin-top': '0mm',
-            'margin-right': '0mm',
-            'margin-bottom': '0mm',
-            'margin-left': '0mm'
         }
         pdfkit.from_file(html_file, pdf_file, configuration=config, options=options)
         return True
