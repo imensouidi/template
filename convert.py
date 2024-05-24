@@ -235,7 +235,8 @@ def save_html_to_file(html_content, output_file):
 
 def convert_html_to_pdf(html_file, pdf_file):
     try:
-        options = {           
+        options = {
+            'allow': os.path.dirname(html_file),  # Allow the folder containing the HTML file
             'page-size': 'A4',
             'encoding': "UTF-8",
             'no-outline': None,  # No outline around the text
@@ -315,4 +316,3 @@ def upload_template():
 if __name__ == "__main__":
     os.makedirs("uploads", exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
-
