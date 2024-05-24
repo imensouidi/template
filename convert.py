@@ -83,6 +83,11 @@ Template:
             padding: 0;
             background: white;
         }}
+        .container {{
+            width: 100%;  /* Ensure container takes full width */
+            margin: 0 auto;  /* Center the container */
+            padding: 0;  /* Remove any default padding */
+        }}
         .banner {{
             background-image: url('{image_url}');
             background-size: cover;
@@ -158,48 +163,50 @@ Template:
     </style>
 </head>
 <body>
-    <div class="banner">
-        <div class="job-title">
-            Job Title: {{ job_title }}<br>
-            Full Name: {{ full_name }}<br>
-            Years of Experience: {{ years_of_experience }}<br>
-        </div>
-    </div>
-    <div class="contact-strip">
-        <div class="contact-info">
-            <div>
-                <span class="contact-icon">📞</span> {{ phone }}
-            </div>
-            <div>
-                <span class="contact-icon">✉️</span> {{ email }}
-            </div>
-            <div>
-                <span class="contact-icon">🌐</span> {{ website }}
+    <div class="container">
+        <div class="banner">
+            <div class="job-title">
+                Job Title: {{ job_title }}<br>
+                Full Name: {{ full_name }}<br>
+                Years of Experience: {{ years_of_experience }}<br>
             </div>
         </div>
-    </div>
-    <div class="section">
-        <div class="section-title">Compétences techniques</div>
-        <div class="section-content">
-            {{ competences_techniques }}
+        <div class="contact-strip">
+            <div class="contact-info">
+                <div>
+                    <span class="contact-icon">📞</span> {{ phone }}
+                </div>
+                <div>
+                    <span class="contact-icon">✉️</span> {{ email }}
+                </div>
+                <div>
+                    <span class="contact-icon">🌐</span> {{ website }}
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="section">
-        <div class="section-title">Formations</div>
-        <div class="section-content">
-            {{ formations }}
+        <div class="section">
+            <div class="section-title">Compétences techniques</div>
+            <div class="section-content">
+                {{ competences_techniques }}
+            </div>
         </div>
-    </div>
-    <div class="section">
-        <div class="section-title">Expériences professionnelles</div>
-        <div class="section-content">
-            <div class="company-name">{{ company_name }}</div>
-            <div class="date-range">{{ date_range }}</div>
-            <ul>
-                <li class="tasks">{{ tasks }}</li>
-                <li class="mission">{{ mission }}</li>
-            </ul>
-            <div class="tech-tools">{{ tech_tools }}</div>
+        <div class="section">
+            <div class="section-title">Formations</div>
+            <div class="section-content">
+                {{ formations }}
+            </div>
+        </div>
+        <div class="section">
+            <div class="section-title">Expériences professionnelles</div>
+            <div class="section-content">
+                <div class="company-name">{{ company_name }}</div>
+                <div class="date-range">{{ date_range }}</div>
+                <ul>
+                    <li class="tasks">{{ tasks }}</li>
+                    <li class="mission">{{ mission }}</li>
+                </ul>
+                <div class="tech-tools">{{ tech_tools }}</div>
+            </div>
         </div>
     </div>
 </body>
@@ -228,7 +235,16 @@ def save_html_to_file(html_content, output_file):
 
 def convert_html_to_pdf(html_file, pdf_file):
     try:
-        options = {}
+        options = {
+            'enable-local-file-access': '',  # Enable access to local files
+            'page-size': 'A4',
+            'encoding': "UTF-8",
+            'no-outline': None,  # No outline around the text
+            'margin-top': '0mm',
+            'margin-right': '0mm',
+            'margin-bottom': '0mm',
+            'margin-left': '0mm'
+        }
         pdfkit.from_file(html_file, pdf_file, configuration=config, options=options)
         return True
     except Exception as e:
@@ -300,4 +316,3 @@ def upload_template():
 if __name__ == "__main__":
     os.makedirs("uploads", exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
-
