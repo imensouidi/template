@@ -91,12 +91,16 @@ Template:
             color: white;
             position: relative;
             top: 0;
+            width: 100%;  /* Ensure full width */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }}
         .job-title {{
             font-size: 20pt;
             font-weight: bold;
             text-align: center;
-            padding-top: 50px;
         }}
         .contact-strip {{
             background-color: #01cdb1;
@@ -104,13 +108,15 @@ Template:
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100%; /* Ensure full width */
         }}
         .contact-info {{
             font-size: 10pt;
-            display: flex;
+            display: flex;  /* Ensure flex display */
             justify-content: center;
-            gap: 10px;
+            gap: 20px; /* Adjust the spacing between contact items */
             color: black;
+            flex-wrap: wrap; /* Ensure items wrap in case of overflow */
         }}
         .contact-icon {{
             margin-right: 3px;
@@ -210,6 +216,7 @@ Template:
         print(f"Error in generating completion: {e}")
         return None
 
+
 def save_html_to_file(html_content, output_file):
     try:
         with open(output_file, "w", encoding="utf-8") as file:
@@ -221,13 +228,18 @@ def save_html_to_file(html_content, output_file):
 
 def convert_html_to_pdf(html_file, pdf_file):
     try:
-        # Removed 'enable-local-file-access' from options
-        options = {}
+        options = {
+            'enable-local-file-access': None,  # Ensure local file access
+            'page-size': 'A4',
+            'encoding': "UTF-8",
+            'no-outline': None
+        }
         pdfkit.from_file(html_file, pdf_file, configuration=config, options=options)
         return True
     except Exception as e:
         print(f"Error converting HTML to PDF: {e}")
         return False
+
 
 def copy_image_to_output_dir(image_path, output_dir):
     dest_image_path = os.path.join(output_dir, os.path.basename(image_path))
