@@ -20,8 +20,6 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the .env file into the container
-COPY .env .
 
 # Copy the necessary application files into the container
 COPY convert.py .
