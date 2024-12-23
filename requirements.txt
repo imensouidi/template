@@ -1,12 +1,11 @@
-python-docx
-flask
-python-dotenv
 PyMuPDF
+python-docx
 Pillow
 pytesseract
-pdfkit
 openai
-tqdm
+reportlab
+flask
+flask-cors
+azure-storage-blob
 azure-identity
 azure-keyvault-secrets
-flask_cors==3.0.10
