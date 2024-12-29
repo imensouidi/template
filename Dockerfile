@@ -8,17 +8,19 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install system dependencies
-RUN mkdir -p /usr/lib/x86_64-linux-gnu/ && \
-    apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    libpango1.0-dev \
-    poppler-utils \
-    tesseract-ocr \
-    libtesseract-dev \
-    libjpeg-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /usr/lib/x86_64-linux-gnu/ /var/lib/dpkg /var/lib/dpkg/updates/ /var/lib/dpkg/info/ /var/cache/apt/archives/partial && \
+    apt-get update && \
+    apt-get install -y \
+        build-essential \
+        python3-dev \
+        libpango1.0-dev \
+        poppler-utils \
+        tesseract-ocr \
+        libtesseract-dev \
+        libjpeg-dev \
+        libpq-dev \
+        fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/*
 # Copy project files
 COPY . /app
 
