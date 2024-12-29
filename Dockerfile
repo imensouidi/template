@@ -8,22 +8,14 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install system dependencies required for PyMuPDF and other packages
-RUN mkdir -p /var/cache/apt/archives/partial \
-    /var/lib/apt/lists/partial \
-    /usr/lib/gcc/x86_64-linux-gnu/12/ \
-    /var/lib/dpkg/updates/ \
-    /var/lib/dpkg/tmp.ci/ \
-    /tmp/apt-dpkg-install/ && \
-    apt-get clean && \
-    apt-get update && \
-    apt-get install -y \
+RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
     libpango1.0-dev \
     poppler-utils \
     tesseract-ocr \
-    libtesseract-dev && \
-    rm -rf /var/lib/apt/lists/*
+    libtesseract-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
