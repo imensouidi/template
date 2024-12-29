@@ -1,13 +1,13 @@
-# Use the official Python image from the Docker Hub
 FROM python:3.9-slim
 
-# Set the working directory in the container
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file into the container
-COPY requirements.txt .
-
-# Install system dependencies required for PyMuPDF and other packages
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
@@ -15,20 +15,19 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     libtesseract-dev \
+    libjpeg-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy project files
+COPY . /app
+
 # Install Python dependencies
+COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-
-# Copy the necessary application files into the container
-COPY convert.py .
-COPY Background.png .
-
-# Expose the port the app runs on
+# Expose port 5000
 EXPOSE 5000
-EXPOSE 443
-EXPOSE 80
 
-# Command to run the application
-CMD ["python", "convert.py"]
+# Run the application
+CMD ["python", "app.py"]
