@@ -8,7 +8,8 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN mkdir -p /usr/lib/x86_64-linux-gnu/ && \
+    apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
     libpango1.0-dev \
@@ -18,7 +19,6 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-
 # Copy project files
 COPY . /app
 
