@@ -14,10 +14,8 @@ RUN apt-get update && apt-get install -y \
     libpango1.0-dev \
     poppler-utils \
     tesseract-ocr \
-    libtesseract-dev || true && \
-    apt-get -f install && \
-    rm -rf /var/lib/apt/lists/*
-
+    libtesseract-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
@@ -29,6 +27,8 @@ COPY Background.png .
 
 # Expose the port the app runs on
 EXPOSE 5000
+EXPOSE 443
+EXPOSE 80
 
 # Command to run the application
 CMD ["python", "convert.py"]
