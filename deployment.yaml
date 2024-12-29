@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $AZURE_WEBAPP_NAME
+  namespace: talentmatch
+  labels:
+    app: $AZURE_WEBAPP_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: $AZURE_WEBAPP_NAME
+  template:
+    metadata:
+      labels:
+        app: $AZURE_WEBAPP_NAME
+    spec:
+      containers:
+      - name: $AZURE_WEBAPP_NAME
+        image: $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/$IMAGE_NAME/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+        ports:
+        - containerPort: 5000
+      imagePullSecrets:
+      - name: acr-secrett
