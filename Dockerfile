@@ -9,6 +9,7 @@ COPY requirements.txt .
 
 # Install system dependencies required for PyMuPDF and other packages
 RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
+    mkdir -p /var/cache/apt/archives/partial && \
     apt-get clean && \
     apt-get update && \
     apt-get install -y \
@@ -19,8 +20,6 @@ RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
     tesseract-ocr \
     libtesseract-dev && \
     rm -rf /var/lib/apt/lists/*
-
-
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
