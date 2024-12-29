@@ -8,8 +8,12 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install system dependencies required for PyMuPDF and other packages
-RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
-    mkdir -p /var/cache/apt/archives/partial /var/lib/apt/lists/partial /usr/lib/gcc/x86_64-linux-gnu/12/ /var/lib/dpkg/updates/ && \
+RUN mkdir -p /var/cache/apt/archives/partial \
+    /var/lib/apt/lists/partial \
+    /usr/lib/gcc/x86_64-linux-gnu/12/ \
+    /var/lib/dpkg/updates/ \
+    /var/lib/dpkg/tmp.ci/ \
+    /tmp/apt-dpkg-install/ && \
     apt-get clean && \
     apt-get update && \
     apt-get install -y \
