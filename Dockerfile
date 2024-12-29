@@ -8,9 +8,9 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install system dependencies required for PyMuPDF and other packages
-RUN apt-get update || true && \
-    mkdir -p /var/lib/dpkg/updates && \
-    dpkg --configure -a || apt-get install -f && \
+RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
+    apt-get clean && \
+    apt-get update && \
     apt-get install -y \
     build-essential \
     python3-dev \
@@ -19,6 +19,7 @@ RUN apt-get update || true && \
     tesseract-ocr \
     libtesseract-dev && \
     rm -rf /var/lib/apt/lists/*
+
 
 
 # Install Python dependencies
