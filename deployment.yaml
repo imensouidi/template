@@ -21,4 +21,4 @@ spec:
         ports:
         - containerPort: 5000
       imagePullSecrets:
-      - name: acr-secrett
+      - name: acr-secret
