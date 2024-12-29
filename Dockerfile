@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install system dependencies required for PyMuPDF and other packages
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y && apt-get install -y --reinstall dpkg \
     build-essential \
     python3-dev \
     libpango1.0-dev \
