@@ -14,8 +14,10 @@ RUN apt-get update && apt-get install -y \
     libpango1.0-dev \
     poppler-utils \
     tesseract-ocr \
-    libtesseract-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libtesseract-dev || true && \
+    apt-get -f install && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
