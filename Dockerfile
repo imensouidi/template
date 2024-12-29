@@ -1,32 +1,30 @@
-# Use a base image
 FROM python:3.9-slim
 
-# Set environment variables to reduce prompts during installation
-ENV DEBIAN_FRONTEND=noninteractive
+# Set environment variables
+# ENV AZURE_CLIENT_ID="985bbd3e-6294-4b70-8f8c-6dc41e2e9268"
+# ENV AZURE_TENANT_ID="1bbea5ff-6a68-4af4-aa7f-2428a8a50adb"
+# ENV AZURE_CLIENT_SECRET="JtU8Q~qj64-1l~59op9KGeqUB75j1iO2bCBK9caN"
 
-# Reset dpkg and clean apt state
-RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /var/lib/dpkg/updates/* && \
-    mkdir -p /var/lib/apt/lists/partial /var/cache/apt/archives/partial /var/lib/dpkg/updates/ && \
-    touch /var/lib/dpkg/status && \
-    apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    libpango1.0-dev \
-    poppler-utils \
-    tesseract-ocr \
-    libtesseract-dev \
-    libjpeg-dev \
-    libpq-dev \
-    fonts-dejavu-core && \
-    rm -rf /var/lib/apt/lists/*
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Copy project files
-WORKDIR /app
-COPY . /app
+# Install unixODBC and unixODBC-devel
+RUN apt-get update && apt-get install -y \
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
+# Copy the requirements file to the working directory
+COPY requirements.txt .
 
-# Expose port and run the app
+# Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application code to the working directory
+COPY . .
+
+# Expose the Flask port
 EXPOSE 5000
-CMD ["python", "app.py"]
+EXPOSE 443
+EXPOSE 80
+
+# Command to run the Flask application
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+
