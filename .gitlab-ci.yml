@@ -12,7 +12,7 @@ variables:
 build:
   stage: build
   tags:
-  - Ai-train
+  - aitrain
   script:
   - docker login $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER -u $DOCKER_USERNAME --password $DOCKER_PASSWORD
   - docker build --no-cache -t $AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/$IMAGE_NAME/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA .
@@ -24,7 +24,7 @@ build:
 deploy:
   stage: deploy
   tags:
-  - Ai-train
+  - aitrain
   when: manual
   script:
   - echo login in azure with a password
