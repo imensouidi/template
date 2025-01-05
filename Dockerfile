@@ -1,5 +1,8 @@
 # Use the official Python image from the Docker Hub
 FROM python:3.9-slim
+ENV AZURE_CLIENT_ID="985bbd3e-6294-4b70-8f8c-6dc41e2e9268"
+ENV AZURE_TENANT_ID="1bbea5ff-6a68-4af4-aa7f-2428a8a50adb"
+ENV AZURE_CLIENT_SECRET="JtU8Q~qj64-1l~59op9KGeqUB75j1iO2bCBK9caN"
 
 # Set the working directory in the container
 WORKDIR /app
