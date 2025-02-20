@@ -9,60 +9,44 @@ from azure.identity import DefaultAzureCredential
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect
 import os
 import logging
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from flask_cors import CORS
 import tempfile
-from dotenv import load_dotenv  # Import python-dotenv
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-# Load environment variables from .env file
+# Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
 
-# Flask app setup
+# Configuration de l'application Flask
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["https://talent.heptasys.com", "http://localhost:4200"]}}, allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
+CORS(app, resources={r"/*": {"origins": ["https://talent.heptasys.com", "http://localhost:4200"]}},
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With"])
 logging.basicConfig(level=logging.INFO)
 
-# Azure Key Vault setup
+# Configuration d'Azure Key Vault
 key_vault_name = 'AI-vault-hepta'
 key_vault_uri = f"https://{key_vault_name}.vault.azure.net/"
 credential = DefaultAzureCredential()
 secret_client = SecretClient(vault_url=key_vault_uri, credential=credential)
 
-# OpenAI client setup using Azure
+# Configuration du client Azure OpenAI
 api_key = secret_client.get_secret('AZUREopenaiAPIkey').value
 azure_endpoint = secret_client.get_secret('AZUREopenaiENDPOINT').value
 azure_openai_client = AzureOpenAI(api_key=api_key, api_version="2024-02-15-preview", azure_endpoint=azure_endpoint)
 
-# Azure Blob Storage setup
+# Configuration d'Azure Blob Storage
 connect_string = secret_client.get_secret('connectstr').value
 blob_service_client = BlobServiceClient.from_connection_string(connect_string)
 container_name = "converted"
 
-# OS Section
-# Adding an OS section to handle file paths and environment variables
-# Ensure that the necessary environment variables are set in the .env file
-
-# Accessing environment variables from .env
-#api_key = os.getenv('AZURE_OPENAI_API_KEY')
-#azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
-#connect_string = os.getenv('AZURE_BLOB_STORAGE_CONNECTION_STRING')
-
-# Initialize Azure OpenAI client
-#azure_openai_client = AzureOpenAI(api_key=api_key, api_version="2024-02-15-preview", azure_endpoint=azure_endpoint)
-
-# Initialize Blob Storage client
-#blob_service_client = BlobServiceClient.from_connection_string(connect_string)
-#container_name = "converted"
-
-# Extract text from file
+# Fonction pour extraire le texte d'un fichier (PDF, DOCX ou image)
 def extract_text(file_path):
     try:
         if file_path.lower().endswith(".pdf"):
@@ -78,62 +62,66 @@ def extract_text(file_path):
         logging.error(f"Error extracting text: {e}")
         return None
 
+# Fonction pour extraire des informations structurées au format JSON via Azure OpenAI
 def extract_info_to_json(text):
-    Json_format = """
+    json_format = """
+{
+  "job_title": "",
+  "full_name": "",
+  "years_of_experience": "",
+  "contact_information": {
+    "phone": "",
+    "email": "",
+    "website": ""
+  },
+  "technical_skills": [
+    ""
+  ],
+  "education": [
     {
-      "job_title": "",
-      "full_name": "",
-      "years_of_experience": "",
-      "contact_information": {
-        "phone": "",
-        "email": "",
-        "website": ""
-      },
-      "competences_techniques": [
-        ""
-      ],
-      "formations": [
-        {
-          "degree": "",
-          "institution": "",
-          "year_of_completion": ""
-        }
-      ],
-      "experiences_professionnelles": [
-        {
-          "company_name": "",
-          "date_range": "",
-          "tasks": [
-            ""
-          ],
-          "mission": "",
-          "tech_tools": [
-            ""
-          ]
-        }
-      ],
-      "skills": {
-        "soft_skills": [
-            ""
-        ],
-        "programming_languages": [
-            ""
-        ],
-        "frameworks_libraries": [
-            ""
-        ],
-
-      },
-      "certifications": [
-        ""
-      ],
+      "degree": "",
+      "institution": "",
+      "year_of_completion": ""
     }
+  ],
+  "professional_experience": [
+    {
+      "company_name": "",
+      "date_range": "",
+      "tasks": [
+        ""
+      ],
+      "mission": "",
+      "tech_tools": [
+        ""
+      ]
+    }
+  ],
+  "skills": {
+    "soft_skills": [
+      ""
+    ],
+    "programming_languages": [
+      ""
+    ],
+    "frameworks_libraries": [
+      ""
+    ],
+    "ides_development_tools": [
+      ""
+    ]
+  },
+  "certifications": [
+    ""
+  ]
+}
     """
     prompt = f"""
-    You are a helpful assistant that extracts specific information from a text and formats it into JSON.
-    Extract the following specific information from the text   {text} and put it into JSON FORMAT like this example:
-    {Json_format}
-    IMPORTANT NOTE: Don't put other symbols like / or /n just structure the output to be in a good JSON FILE. Give me the right output of json because I will save the output directly into a JSON file AND extract the text word for word .
+You are a helpful assistant that extracts specific information from a text and formats it into JSON.
+Extract the following information from the text: {text}
+and format it as JSON according to the example below:
+{json_format}
+IMPORTANT: Do not include any extra symbols; provide only a valid JSON output.
     """
     try:
         response = azure_openai_client.completions.create(
@@ -146,6 +134,7 @@ def extract_info_to_json(text):
         logging.error(f"Error calling OpenAI API: {e}")
         return None
 
+# Sauvegarde du JSON extrait dans un fichier
 def clean_and_save_json(raw_json_text, file_path):
     try:
         clean_json_data = json.loads(raw_json_text)
@@ -155,6 +144,18 @@ def clean_and_save_json(raw_json_text, file_path):
     except json.JSONDecodeError as e:
         logging.error(f"Error decoding JSON: {e}")
 
+# Fonction pour générer dynamiquement le nom du PDF à partir du JSON
+def generate_pdf_filename(json_data, original_filename):
+    full_name = json_data.get('full_name', '').strip().replace(' ', '_')
+    job_title = json_data.get('job_title', '').strip().replace(' ', '_')
+    # Si on a les informations, on utilise le format souhaité
+    if full_name and job_title:
+        return f"CV_{full_name}_{job_title}_Heptasy.pdf"
+    # Sinon, on revient à la méthode basée sur le nom original
+    base_name, _ = os.path.splitext(original_filename)
+    return f"{base_name}_output.pdf"
+
+# Génération d'un PDF à partir des données JSON
 def generate_pdf_from_json(json_data, output_file):
     doc = SimpleDocTemplate(output_file, pagesize=A4)
     styles = getSampleStyleSheet()
@@ -163,106 +164,98 @@ def generate_pdf_from_json(json_data, output_file):
     styles.add(ParagraphStyle(name='Right', alignment=2))
     styles.add(ParagraphStyle(name='Section', fontSize=16, textColor=colors.turquoise, spaceAfter=12))
     styles.add(ParagraphStyle(name='Bold', parent=styles['Normal'], fontName='Helvetica-Bold'))
-
-    def draw_banner(canvas, doc):
-        banner_img = ImageReader("Background.png")
-        banner_height = 2 * inch
-        canvas.drawImage(banner_img, 0, A4[1] - banner_height, width=A4[0], height=banner_height)
-        canvas.setFillColor(colors.white)
-        canvas.setFont("Helvetica-Bold", 16)
-        
-        # Move job title, full name, and experience section up a little bit
-        text_y_position = A4[1] - 0.75 * inch
-        job_title_x = (A4[0] - canvas.stringWidth("Job Title: " + json_data.get('job_title', '').replace('\n', ' '))) / 2
-        full_name_x = (A4[0] - canvas.stringWidth("Full Name: " + json_data.get('full_name', '').replace('\n', ' '))) / 2
-        experience_x = (A4[0] - canvas.stringWidth("Years of Experience: " + str(json_data.get('years_of_experience', '')).replace('\n', ' '))) / 2
-        canvas.drawString(job_title_x, text_y_position, "Job Title: " + json_data.get('job_title', '').replace('\n', ' '))
-        canvas.drawString(full_name_x, text_y_position - 20, "Full Name: " + json_data.get('full_name', '').replace('\n', ' '))
-        canvas.drawString(experience_x, text_y_position - 40, "Years of Experience: " + str(json_data.get('years_of_experience', '')).replace('\n', ' '))
-        
-        # Move the contact information up a bit
-        icon_y_position = A4[1] - inch - 60
-        contact_info = json_data['contact_information']
-        
-        canvas.setFont("Helvetica", 8)
-        canvas.drawString(80, icon_y_position, contact_info.get('phone', '').replace('\n', ' '))
-        canvas.drawString(260, icon_y_position, contact_info.get('email', '').replace('\n', ' '))
-        
-        website = contact_info.get('website', '').replace('\n', ' ')
-        if len(website) > 30:
-            website_lines = [website[:30], website[30:]]
-            canvas.drawString(470, icon_y_position, website_lines[0])
-            canvas.drawString(470, icon_y_position - 10, website_lines[1])
-        else:
-            canvas.drawString(470, icon_y_position, website)
-
-    doc.build(story, onFirstPage=draw_banner)
-
-    # Contact Information Section
-   
-    story.append(Spacer(1, 66))
     
+    # Bannière d'en-tête personnalisée (titre, expérience et infos de contact)
+    def draw_banner(canvas_obj, doc_obj):
+        try:
+            banner_img = ImageReader("Background.png")
+            banner_height = 2 * inch
+            canvas_obj.drawImage(banner_img, 0, A4[1] - banner_height, width=A4[0], height=banner_height)
+        except Exception as e:
+            logging.error(f"Error loading banner image: {e}")
+        canvas_obj.setFillColor(colors.white)
+        job_title = json_data.get('job_title', '').replace('\n', ' ').strip() or "CV Title"
+        years_experience = str(json_data.get('years_of_experience', '')).replace('\n', ' ').strip()
+        canvas_obj.setFont("Helvetica-Bold", 20)
+        text_y_position = A4[1] - 0.75 * inch
+        job_title_width = canvas_obj.stringWidth(job_title, "Helvetica-Bold", 20)
+        job_title_x = (A4[0] - job_title_width) / 2
+        canvas_obj.drawString(job_title_x, text_y_position, job_title)
+        canvas_obj.setFont("Helvetica-Bold", 16)
+        experience_text = "A.L : " + years_experience + " XP"
+        experience_width = canvas_obj.stringWidth(experience_text, "Helvetica-Bold", 16)
+        experience_x = (A4[0] - experience_width) / 2
+        canvas_obj.drawString(experience_x, text_y_position - 40, experience_text)
+        icon_y_position = A4[1] - inch - 60
+        canvas_obj.setFont("Helvetica", 8)
+        canvas_obj.drawString(80, icon_y_position, "01 40 76 01 49")
+        canvas_obj.drawString(260, icon_y_position, "heptasys@heptasys.com")
+        website = "www.heptasys.com"
+        canvas_obj.drawString(470, icon_y_position, website)
+    
+    # Ajouter un espace pour éviter la superposition avec la bannière
+    story.append(Spacer(1, 100))
+    
+    # Affichage des compétences techniques par catégorie
     story.append(Paragraph("Compétences techniques", styles['Section']))
-    skills = ", ".join(json_data.get('competences_techniques', []))
-    story.append(Paragraph(skills, styles['Normal']))
+    skills_section = json_data.get('skills', {})
+    if isinstance(skills_section, dict) and skills_section:
+        for category_key, skills in skills_section.items():
+            category_title = category_key.replace('_', ' ').title() + " :"
+            story.append(Paragraph(category_title, styles['Bold']))
+            for skill in skills:
+                story.append(Paragraph(f"• {skill}", styles['Normal']))
+            story.append(Spacer(1, 6))
+    else:
+        technical_skills = ", ".join(json_data.get('technical_skills', []))
+        story.append(Paragraph(technical_skills, styles['Normal']))
     story.append(Spacer(1, 12))
-    story.append(Paragraph("Formations", styles['Section']))
-    for formation in json_data.get('formations', []):
-        # Preprocess the values to replace newline characters
-        degree = formation.get('degree', '').replace('\n', ' ')
-        institution = formation.get('institution', '').replace('\n', ' ')
-        year_of_completion = str(formation.get('year_of_completion', ''))
-
-        # Use the preprocessed values in the f-string
-        formation_text = f"{degree} at {institution} ({year_of_completion})"
-        story.append(Paragraph(formation_text, styles['Normal']))
+    
+    # Section Éducation
+    story.append(Paragraph("Formation", styles['Section']))
+    for edu in json_data.get('education', []):
+        degree = edu.get('degree', '').replace('\n', ' ')
+        institution = edu.get('institution', '').replace('\n', ' ')
+        year = str(edu.get('year_of_completion', ''))
+        education_text = f"{degree} à {institution} ({year})"
+        story.append(Paragraph(education_text, styles['Normal']))
     story.append(Spacer(1, 12))
+    
+    # Section Expériences professionnelles
     story.append(Paragraph("Expériences professionnelles", styles['Section']))
-    for exp in json_data.get('experiences_professionnelles', []):
-        story.append(Paragraph(exp.get('company_name', '').replace('\n', ' '), styles['Heading3']))
-        story.append(Paragraph(exp.get('date_range', '').replace('\n', ' '), styles['Italic']))
-        story.append(Paragraph("Tasks:", styles['Bold']))
+    for exp in json_data.get('professional_experience', []):
+        company_name = exp.get('company_name', '').replace('\n', ' ')
+        if company_name:
+            story.append(Paragraph(company_name, styles['Heading3']))
+        date_range = exp.get('date_range', '').replace('\n', ' ')
+        if date_range:
+            story.append(Paragraph(date_range, styles['Italic']))
+        story.append(Paragraph("Tâches :", styles['Bold']))
         for task in exp.get('tasks', []):
             story.append(Paragraph("• " + task.replace('\n', ' '), styles['Normal']))
-        story.append(Paragraph("Mission: " + exp.get('mission', '').replace('\n', ' '), styles['Normal']))
-        story.append(Paragraph("Technologies: " + ', '.join(exp.get('tech_tools', [])).replace('\n', ' '), styles['Normal']))
+        mission = exp.get('mission', '').replace('\n', ' ')
+        if mission:
+            story.append(Paragraph("Mission : " + mission, styles['Normal']))
+        tech_tools = ", ".join(exp.get('tech_tools', []))
+        if tech_tools:
+            story.append(Paragraph("Outils : " + tech_tools, styles['Normal']))
         story.append(Spacer(1, 12))
+    
+    # Section Certifications (une certification par ligne)
+    if json_data.get('certifications'):
+        story.append(Paragraph("Certifications", styles['Section']))
+        certifications = json_data.get('certifications', [])
+        for cert in certifications:
+            if isinstance(cert, dict):
+                cert_text = cert.get('name', '')
+            else:
+                cert_text = cert
+            story.append(Paragraph(cert_text, styles['Normal']))
+            story.append(Spacer(1, 6))
+    
+    doc.build(story, onFirstPage=draw_banner)
 
-    # Dynamic Skills Section
-    skills_section = json_data.get('skills', {})
-    if isinstance(skills_section, dict):
-        story.append(Paragraph("Skills", styles['Section']))
-        # Soft Skills
-        if skills_section.get('soft_skills'):
-            story.append(Paragraph("Soft Skills:", styles['Bold']))
-            story.append(Paragraph(", ".join(skills_section.get('soft_skills', [])), styles['Normal']))
-        # Programming Languages
-        if skills_section.get('programming_languages'):
-            story.append(Paragraph("Programming Languages:", styles['Bold']))
-            story.append(Paragraph(", ".join(skills_section.get('programming_languages', [])), styles['Normal']))
-        # Frameworks & Libraries
-        if skills_section.get('frameworks_libraries'):
-            story.append(Paragraph("Frameworks & Libraries:", styles['Bold']))
-            story.append(Paragraph(", ".join(skills_section.get('frameworks_libraries', [])), styles['Normal']))
-        # IDEs & Development Tools
-        if skills_section.get('ides_development_tools'):
-            story.append(Paragraph("IDEs & Development Tools:", styles['Bold']))
-            story.append(Paragraph(", ".join(skills_section.get('ides_development_tools', [])), styles['Normal']))
-        # Certifications
-        if json_data.get('certifications'):
-            certifications = []
-            for cert in json_data.get('certifications', []):
-                if isinstance(cert, dict):
-                    # Extract the relevant string value from the dictionary
-                    cert_name = cert.get('name', '')
-                    certifications.append(cert_name)
-                elif isinstance(cert, str):
-                    certifications.append(cert)
-            story.append(Paragraph("Certifications", styles['Section']))
-            story.append(Paragraph(", ".join(certifications), styles['Normal']))
-
-    doc.build(story)
-
+# Générer un SAS token pour l'upload vers Blob Storage
 def generate_sas_token(blob_name):
     try:
         sas_token = generate_blob_sas(
@@ -271,7 +264,7 @@ def generate_sas_token(blob_name):
             blob_name=blob_name,
             account_key=blob_service_client.credential.account_key,
             permission=BlobSasPermissions(read=True),
-            expiry=datetime.utcnow() + timedelta(minutes=1)  # Change expiry to 1 minute
+            expiry=datetime.utcnow() + timedelta(minutes=10)
         )
         blob_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{container_name}/{blob_name}?{sas_token}"
         return blob_url
@@ -291,6 +284,18 @@ def generate_sas_token_route():
     else:
         return {"error": "Failed to generate SAS token"}, 500
 
+# Vérification de l'extension du fichier
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pdf', 'docx'}
+
+# Upload du fichier généré vers Azure Blob Storage
+def upload_to_blob_storage(file_path, blob_name):
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    with open(file_path, "rb") as data:
+        blob_client.upload_blob(data, overwrite=True)
+    logging.info(f"File {blob_name} uploaded to Azure Blob Storage.")
+
+# Route pour l'upload du fichier et le traitement du CV
 @app.route('/template', methods=['POST'])
 def upload_file():
     logging.info("Received a request at /template")
@@ -299,7 +304,7 @@ def upload_file():
         return redirect(request.url)
     file = request.files['file']
     if file.filename == '':
-        logging.error("No selected file")
+        logging.error("No file selected")
         return redirect(request.url)
     if file and allowed_file(file.filename):
         filename = file.filename
@@ -319,10 +324,9 @@ def upload_file():
                     return "Failed to save JSON file."
                 with open(json_file_path, 'r', encoding='utf-8') as f:
                     json_data = json.load(f)
-                logging.info("JSON Data: %s", json_data)  # Debugging statement
-                # Generate the PDF file name based on the uploaded file name
-                base_name, _ = os.path.splitext(filename)
-                pdf_file_name = f"{base_name}_output.pdf"
+                logging.info("JSON Data: %s", json_data)
+                # Génération dynamique du nom du PDF
+                pdf_file_name = generate_pdf_filename(json_data, filename)
                 pdf_file_path = os.path.join(tempfile.gettempdir(), pdf_file_name)
                 generate_pdf_from_json(json_data, pdf_file_path)
                 logging.info(f"PDF generated at {pdf_file_path}")
@@ -343,14 +347,5 @@ def upload_file():
             return "No text extracted from the file."
     return render_template('upload.html')
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pdf', 'docx'}
-
-def upload_to_blob_storage(file_path, blob_name):
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
-    with open(file_path, "rb") as data:
-        blob_client.upload_blob(data, overwrite=True)
-    logging.info(f"File {blob_name} uploaded to Azure Blob Storage.")
-
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
