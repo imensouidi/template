@@ -80,9 +80,8 @@ def extract_info_to_json(text):
     au format JSON. IMPORTANT: On exige de NE PAS traduire le texte
     et de préserver l'ordre exact d'apparition des expériences.
     """
-    # Exemple de structure JSON (clés en anglais, mais contenu en français)
     json_format = """
-{
+ {
   "job_title": "",
   "full_name": "",
   "years_of_experience": "",
@@ -131,24 +130,24 @@ def extract_info_to_json(text):
   "certifications": [
     ""
   ]
-}
+ }
     """
 
-    # Prompt pour OpenAI : on spécifie de NE PAS traduire, de préserver l'ordre, etc.
+   
     prompt = f"""
-You are a helpful assistant that extracts specific information from a résumé (CV) written in French.
-IMPORTANT:
-- The text is in French. DO NOT translate any French text into English.
-- Preserve the exact textual order of the professional experiences as they appear in the CV (do not reorder).
-- Keep date ranges exactly as they appear (do not reformat).
-- Return only valid JSON (no extra text or symbols).
+ You are a helpful assistant that extracts specific information from a résumé (CV) written in French.
+ IMPORTANT:
+ - The text is in French. DO NOT translate any French text into English.
+ - Preserve the exact textual order of the professional experiences as they appear in the CV (do not reorder).
+ - Keep date ranges exactly as they appear (do not reformat).
+ - Return only valid JSON (no extra text or symbols).
 
-Extract the following information from the text (in French):
-{text}
+ Extract the following information from the text (in French):
+ {text}
 
-Format the result as JSON according to the example below:
-{json_format}
-Do not include any extra symbols; provide only valid JSON output.
+ Format the result as JSON according to the example below:
+ {json_format}
+ Do not include any extra symbols; provide only valid JSON output.
     """
 
     try:
