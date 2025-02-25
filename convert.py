@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.lib.units import inch
+from reportlab.lib.units import inch, cm
 from reportlab.lib.utils import ImageReader
 from flask import Flask, request, jsonify
 import os
@@ -21,7 +21,6 @@ from flask_cors import CORS
 import tempfile
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
-from reportlab.lib.units import inch, cm
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
@@ -297,7 +296,7 @@ def generate_pdf_from_json(json_data, output_file):
             story.append(Paragraph(cert_text, styles['Normal']))
     story.append(Spacer(1, 12))
     
-    # Section Compétences techniques
+    # Section Compétences techniques par catégorie
     story.append(create_section_title("Compétences techniques"))
     story.append(Spacer(1, 12))
     if json_data.get('technical_skills'):
@@ -306,10 +305,11 @@ def generate_pdf_from_json(json_data, output_file):
     else:
         skills_section = json_data.get('skills', {})
         if isinstance(skills_section, dict) and skills_section:
-            all_skills = []
             for category_key, skills in skills_section.items():
-                all_skills.append(f"{category_key.replace('_',' ').title()} : " + ", ".join(skills))
-            story.append(Paragraph(" ; ".join(all_skills), styles['Normal']))
+                cat_title = category_key.replace('_', ' ').title()
+                cat_skills = ", ".join(skills)
+                story.append(Paragraph(f"<b>{cat_title} :</b> {cat_skills}", styles['Normal']))
+                story.append(Spacer(1, 6))
     story.append(Spacer(1, 12))
     
     # Section Expériences professionnelles
