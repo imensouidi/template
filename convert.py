@@ -94,7 +94,7 @@ def extract_info_to_json(text):
     IMPORTANT :
     - Ne traduisez PAS le texte en anglais.
     - Conservez l'ordre exact des expériences.
-    - VERY IMPORTANT: Pour chaque entrée de "professional_experience", extrayez et restituez exactement
+    - Pour chaque entrée de "professional_experience", extrayez et restituez exactement
       les champs "date_range", "company_name" et "mission" (le poste) tels qu'ils apparaissent dans le CV.
       Par exemple, si le CV contient la ligne "Novembre2023  - Janvier2025    RAJA" suivie d'une ligne avec
       "Database Administrator (DBA MSSQL , POSTGRES )", alors "date_range" doit être "Novembre2023  - Janvier2025",
@@ -159,9 +159,10 @@ You are a helpful assistant that extracts specific information from a résumé (
 IMPORTANT:
 - The text is in French. DO NOT translate it.
 - Preserve the exact order of the professional experiences as they appear.
-- VERY IMPORTANT: For each entry in "professional_experience", extract and output the "date_range", "company_name", and "mission" exactly as they appear in the CV.
-  For example, if the CV contains the line "Novembre2023  - Janvier2025    RAJA" followed by a line with the position "Database Administrator (DBA MSSQL , POSTGRES )",
-  then "date_range" must be "Novembre2023  - Janvier2025", "company_name" must be "RAJA", and "mission" must be "Database Administrator (DBA MSSQL , POSTGRES )".
+- For each entry in "professional_experience", extract exactly the following fields exactly as they appear in the CV:
+  - "date_range": the date range (e.g., "Novembre2023  - Janvier2025")
+  - "company_name": the company name (e.g., "RAJA")
+  - "mission": the job title or position, which usually appears on the line immediately after the date and company line (e.g., "Database Administrator (DBA MSSQL , POSTGRES )")
 - Return only valid JSON (no extra text or symbols).
 
 Extract the following information from the text (in French):
@@ -184,6 +185,7 @@ Do not include any extra symbols.
     except Exception as e:
         logging.error(f"Erreur lors de l'appel à l'API OpenAI : {e}")
         return None
+
 
 def clean_and_save_json(raw_json_text, file_path):
     """
