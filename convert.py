@@ -21,6 +21,7 @@ from flask_cors import CORS
 import tempfile
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+from pdf2docx import Converter
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
@@ -383,6 +384,24 @@ def upload_to_blob_storage(file_path, blob_name):
         logging.info(f"Fichier {blob_name} uploadé vers Azure Blob Storage.")
     except Exception as e:
         logging.error(f"Erreur lors de l'upload vers Blob Storage : {e}")
+        
+
+
+def convert_pdf_to_docx(pdf_path, docx_path):
+    """
+    Convertit un fichier PDF en DOCX.
+    :param pdf_path: Chemin du fichier PDF.
+    :param docx_path: Chemin de sortie pour le fichier DOCX.
+    """
+    try:
+        cv = Converter(pdf_path)
+        cv.convert(docx_path, start=0, end=None)
+        cv.close()
+        logging.info(f"Conversion réussie : {pdf_path} -> {docx_path}")
+        return True
+    except Exception as e:
+        logging.error(f"Erreur lors de la conversion du PDF en DOCX : {e}")
+        return False
 
 @app.route('/template', methods=['POST'])
 def upload_file():
@@ -432,19 +451,32 @@ def upload_file():
         generate_pdf_from_json(json_data, pdf_file_path)
         logging.info(f"PDF généré à {pdf_file_path}")
 
-        upload_to_blob_storage(pdf_file_path, pdf_file_name)
-        logging.info(f"PDF uploadé vers Blob Storage sous le nom {pdf_file_name}")
+        # Convertir le PDF en DOCX
+        docx_file_name = pdf_file_name.replace('.pdf', '.docx')
+        docx_file_path = os.path.join(tempfile.gettempdir(), docx_file_name)
+        if not convert_pdf_to_docx(pdf_file_path, docx_file_path):
+            logging.error("Échec de la conversion du PDF en DOCX")
+            return jsonify({"error": "Échec de la conversion du PDF en DOCX"}), 500
+        logging.info(f"DOCX généré à {docx_file_path}")
 
-        sas_url = generate_sas_token(pdf_file_name)
-        if sas_url:
-            logging.info(f"SAS URL généré : {sas_url}")
-            return jsonify({"sas_url": sas_url}), 200
+        # Uploader le PDF et le DOCX vers Blob Storage
+        upload_to_blob_storage(pdf_file_path, pdf_file_name)
+        upload_to_blob_storage(docx_file_path, docx_file_name)
+        logging.info(f"PDF et DOCX uploadés vers Blob Storage sous les noms {pdf_file_name} et {docx_file_name}")
+
+        # Générer les URLs SAS pour les deux fichiers
+        pdf_sas_url = generate_sas_token(pdf_file_name)
+        docx_sas_url = generate_sas_token(docx_file_name)
+        if pdf_sas_url and docx_sas_url:
+            logging.info(f"SAS URLs générés : PDF - {pdf_sas_url}, DOCX - {docx_sas_url}")
+            return jsonify({"pdf_sas_url": pdf_sas_url, "docx_sas_url": docx_sas_url}), 200
         else:
-            logging.error("Échec de la génération du SAS token")
-            return jsonify({"error": "Échec de la génération du SAS token"}), 500
+            logging.error("Échec de la génération des SAS tokens")
+            return jsonify({"error": "Échec de la génération des SAS tokens"}), 500
     else:
         logging.error("Fichier non valide ou extension non autorisée")
         return jsonify({"error": "Fichier non valide ou extension non autorisée"}), 400
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001, debug=True)
