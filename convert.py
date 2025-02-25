@@ -1,4 +1,5 @@
 import json
+import re
 import fitz  # PyMuPDF
 from docx import Document
 from PIL import Image
@@ -12,7 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, jsonify
 import os
 import logging
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
@@ -20,6 +21,7 @@ from flask_cors import CORS
 import tempfile
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+from reportlab.lib.units import inch, cm
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
@@ -31,31 +33,25 @@ CORS(app, resources={r"/*": {"origins": ["https://talent.heptasys.com", "http://
 logging.basicConfig(level=logging.INFO)
 
 # Configuration d'Azure Key Vault
-key_vault_name = 'AI-vault-hepta'  # À adapter à votre Key Vault
+key_vault_name = 'AI-vault-hepta'
 key_vault_uri = f"https://{key_vault_name}.vault.azure.net/"
 credential = DefaultAzureCredential()
 secret_client = SecretClient(vault_url=key_vault_uri, credential=credential)
 
-# Récupération des secrets depuis le Key Vault
 api_key = secret_client.get_secret('AZUREopenaiAPIkey').value
 azure_endpoint = secret_client.get_secret('AZUREopenaiENDPOINT').value
 connect_string = secret_client.get_secret('connectstr').value
 
-# Configuration du client Azure OpenAI
 azure_openai_client = AzureOpenAI(
     api_key=api_key,
     api_version="2024-02-15-preview",
     azure_endpoint=azure_endpoint
 )
 
-# Configuration d'Azure Blob Storage
 blob_service_client = BlobServiceClient.from_connection_string(connect_string)
-container_name = "converted"  # Nom du conteneur où on stocke les PDF générés
+container_name = "converted"
 
 def get_account_key_from_connection_string(conn_str):
-    """
-    Extrait la clé de compte depuis la chaîne de connexion.
-    """
     parts = conn_str.split(';')
     for part in parts:
         if part.strip().startswith("AccountKey="):
@@ -69,10 +65,6 @@ else:
     _account_key = get_account_key_from_connection_string(connect_string)
 
 def extract_text(file_path):
-    """
-    Extrait le texte d'un fichier PDF, DOCX ou Image
-    sans reformater les dates.
-    """
     try:
         if file_path.lower().endswith(".pdf"):
             with fitz.open(file_path) as doc:
@@ -81,7 +73,6 @@ def extract_text(file_path):
             doc = Document(file_path)
             return "\n".join(paragraph.text for paragraph in doc.paragraphs)
         else:
-            # Supposons qu'il s'agit d'une image
             image = Image.open(file_path)
             return pytesseract.image_to_string(image)
     except Exception as e:
@@ -89,15 +80,6 @@ def extract_text(file_path):
         return None
 
 def extract_info_to_json(text):
-    """
-    Appelle Azure OpenAI pour extraire des informations structurées au format JSON.
-    IMPORTANT :
-    - Ne traduisez PAS le texte en anglais.
-    - Conservez l'ordre exact des expériences.
-    - Pour chaque entrée de "professional_experience", extrayez et restituez exactement
-      les champs "date_range", "company_name" et "mission" (le poste) tels qu'ils apparaissent dans le CV.
-    - Retournez uniquement du JSON valide (aucun texte supplémentaire).
-    """
     json_format = """
 {
   "job_title": "",
@@ -143,7 +125,7 @@ IMPORTANT:
 - For each entry in "professional_experience", extract exactly the following fields exactly as they appear in the CV:
   - "date_range": the date range (e.g., "Novembre2023  - Janvier2025")
   - "company_name": the company name (e.g., "RAJA")
-  - "mission": the job title or position, which usually appears on the line immediately after the date and company line (e.g., "Database Administrator (DBA MSSQL , POSTGRES )")
+  - "mission": the job title or position, which usually appears on the line immediately after the date and company line.
 - Return only valid JSON (no extra text or symbols).
 
 Extract the following information from the text (in French):
@@ -157,7 +139,7 @@ Do not include any extra symbols.
     
     try:
         response = azure_openai_client.completions.create(
-            model="IndexSelector",  # À adapter selon votre configuration
+            model="IndexSelector",
             prompt=prompt,
             max_tokens=3000,
             temperature=0
@@ -168,9 +150,6 @@ Do not include any extra symbols.
         return None
 
 def clean_and_save_json(raw_json_text, file_path):
-    """
-    Sauvegarde proprement le JSON dans un fichier.
-    """
     try:
         clean_json_data = json.loads(raw_json_text)
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -180,35 +159,62 @@ def clean_and_save_json(raw_json_text, file_path):
         logging.error(f"Erreur de décodage JSON : {e}")
 
 def generate_pdf_filename(json_data, original_filename):
-    """
-    Génère un nom de fichier PDF en conservant le nom d'entrée + '_output'.
-    """
     base_name, _ = os.path.splitext(original_filename)
     return f"{base_name}_output.pdf"
 
+def process_skills(json_data):
+    if "skills" in json_data:
+        skills = json_data["skills"]
+        if isinstance(skills, dict):
+            valid = False
+            for cat, items in skills.items():
+                if isinstance(items, list) and any(isinstance(item, str) and item.strip() for item in items):
+                    valid = True
+                    break
+            if not valid:
+                json_data["technical_skills"] = list(skills.keys())
+                del json_data["skills"]
+    return json_data
+
 def generate_pdf_from_json(json_data, output_file):
-    """
-    Génère un PDF à partir des données JSON en conservant l'ordre et le texte (en français)
-    tels qu’ils figurent dans le JSON.
-    """
     doc = SimpleDocTemplate(output_file, pagesize=A4)
+    
+    # Création des styles
+    global styles
     styles = getSampleStyleSheet()
+    styles['Normal'].fontName = 'Helvetica'
+    styles['Normal'].fontSize = 10
+    styles['Normal'].leading = 12
+    styles.add(ParagraphStyle(name='Section', parent=styles['Normal'],
+                              fontName='Helvetica-Bold', fontSize=12,
+                              textColor=colors.black, alignment=1, spaceAfter=12))
+    styles.add(ParagraphStyle(name='Bold', parent=styles['Normal'],
+                              fontName='Helvetica-Bold'))
+    styles.add(ParagraphStyle(name='Center', parent=styles['Normal'], alignment=1))
+    styles.add(ParagraphStyle(name='Right', parent=styles['Normal'], alignment=2))
+    
+    # Fonction pour créer un titre de section dans un cadre
+    def create_section_title(title_text):
+        title_para = Paragraph(title_text, styles['Section'])
+        title_table = Table([[title_para]], colWidths=[6*inch])
+        title_table.setStyle(TableStyle([
+            ("ALIGN", (0,0), (-1,-1), "CENTER"),
+            ("BOX", (0,0), (-1,-1), 1, colors.turquoise),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 12),
+            ("TOPPADDING", (0,0), (-1,-1), 12)
+        ]))
+        return title_table
+
     story = []
     
-    # Ajout de styles personnalisés
-    styles.add(ParagraphStyle(name='Center', alignment=1))
-    styles.add(ParagraphStyle(name='Right', alignment=2))
-    styles.add(ParagraphStyle(name='Section', fontSize=16, textColor=colors.turquoise, spaceAfter=12))
-    styles.add(ParagraphStyle(name='Bold', parent=styles['Normal'], fontName='Helvetica-Bold'))
-    
     def draw_banner(canvas_obj, doc_obj):
-        # Chargement de la bannière
         try:
             banner_path = "Background.png"
             if os.path.exists(banner_path):
                 banner_img = ImageReader(banner_path)
                 banner_height = 2 * inch
-                canvas_obj.drawImage(banner_img, 0, A4[1]-banner_height, width=A4[0], height=banner_height)
+                canvas_obj.drawImage(banner_img, 0, A4[1] - banner_height,
+                                       width=A4[0], height=banner_height)
             else:
                 logging.warning(f"Bannière introuvable : {banner_path}")
                 banner_height = 2 * inch
@@ -216,94 +222,115 @@ def generate_pdf_from_json(json_data, output_file):
             logging.error(f"Erreur lors du chargement de la bannière : {e}")
             banner_height = 2 * inch
 
-        # Création d'un style Paragraph pour le titre
         title_style = ParagraphStyle(
             name='HeaderTitle',
+            parent=styles['Normal'],
             fontName='Helvetica-Bold',
-            fontSize=20,
-            alignment=1,  # centré
+            fontSize=14,
+            alignment=0,
             leading=24,
             textColor=colors.white
         )
         
         job_title = json_data.get('job_title', '').replace('\n', ' ').strip() or "CV Title"
         title_para = Paragraph(job_title, title_style)
-        available_width = A4[0] - 2 * inch  # marge de 1 inch de chaque côté
+        available_width = A4[0] - 2 * inch
         w, h = title_para.wrap(available_width, 100)
         
-        # Définir un offset pour remonter le titre et le texte A.L
-        vertical_offset = 20  # Ajustez cette valeur selon vos besoins
+        vertical_offset = 20
+        title_y = A4[1] - (2 * inch)/2 - h/2 + vertical_offset
         
-        title_y = A4[1] - banner_height/2 - h/2 + vertical_offset
-        title_para.drawOn(canvas_obj, (A4[0] - w)/2, title_y)
+        header_x = 4.5 * cm
+        title_para.drawOn(canvas_obj, header_x, title_y)
         
-        canvas_obj.setFont("Helvetica-Bold", 16)
+        full_name = json_data.get('full_name', '').strip()
+        if full_name:
+            parts = full_name.split()
+            initials = parts[0][0].upper() + "." + parts[-1][0].upper() if len(parts) >= 2 else full_name[0].upper()
+        else:
+            initials = "?"
+        
+        canvas_obj.setFont("Helvetica-Bold", 14)
         years_experience = str(json_data.get('years_of_experience', '')).replace('\n', ' ').strip()
-        experience_text = "A.L : " + years_experience + " XP"
-        experience_width = canvas_obj.stringWidth(experience_text, "Helvetica-Bold", 16)
-        experience_x = (A4[0]-experience_width)/2
+        experience_text = f"{initials} : {years_experience} XP"
         canvas_obj.setFillColor(colors.white)
-        canvas_obj.drawString(experience_x, title_y - 20, experience_text)
+        canvas_obj.drawString(header_x, title_y - 20, experience_text)
         
-        # Affichage des informations de contact
-        icon_y_position = A4[1]-inch-60
+        icon_y_position = A4[1] - inch - 60
         canvas_obj.setFont("Helvetica", 8)
         canvas_obj.drawString(80, icon_y_position, "01 40 76 01 49")
         canvas_obj.drawString(260, icon_y_position, "heptasys@heptasys.com")
         canvas_obj.drawString(470, icon_y_position, "www.heptasys.com")
     
-    # Espace pour la bannière
-    story.append(Spacer(1,100))
+    story.append(Spacer(1, 100))
     
-    # --- Section Formation & Certifications ---
-    story.append(Paragraph("Formation & Certifications", styles['Section']))
-    for edu in json_data.get('education', []):
-        degree = edu.get('degree', '').replace('\n', ' ')
-        institution = edu.get('institution', '').replace('\n', ' ')
-        year = str(edu.get('year_of_completion', ''))
-        education_text = f"{degree} à {institution} ({year})"
-        story.append(Paragraph(education_text, styles['Normal']))
-    story.append(Spacer(1,12))
+    # Section Formation & Certifications
+    story.append(create_section_title("Formation & Certifications"))
+    story.append(Spacer(1, 12))
+    if json_data.get('education'):
+        has_date = any(edu.get('year_of_completion', '').strip() for edu in json_data.get('education', []))
+        if has_date:
+            education_rows = []
+            for edu in json_data.get('education', []):
+                degree = edu.get('degree', '').replace('\n', ' ')
+                institution = edu.get('institution', '').replace('\n', ' ')
+                year = str(edu.get('year_of_completion', '')).strip()
+                left_text = Paragraph(f"<b>{degree} à {institution}</b>", styles['Normal'])
+                right_text = Paragraph(year, styles['Normal'])
+                education_rows.append([left_text, right_text])
+            edu_table = Table(education_rows, colWidths=[4.5*inch, 1.5*inch])
+            edu_table.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+            ]))
+            story.append(edu_table)
+        else:
+            for edu in json_data.get('education', []):
+                degree = edu.get('degree', '').replace('\n', ' ')
+                institution = edu.get('institution', '').replace('\n', ' ')
+                year = str(edu.get('year_of_completion', '')).strip()
+                education_text = f"<b>{degree} à {institution}</b>" + (f" ({year})" if year else "")
+                story.append(Paragraph(education_text, styles['Normal']))
     if json_data.get('certifications'):
         for cert in json_data.get('certifications', []):
             cert_text = cert.get('name', '') if isinstance(cert, dict) else cert
             story.append(Paragraph(cert_text, styles['Normal']))
-            story.append(Spacer(1,6))
-    story.append(Spacer(1,12))
+    story.append(Spacer(1, 12))
     
-    # --- Section Compétences techniques ---
-    story.append(Paragraph("Compétences techniques", styles['Section']))
-    skills_section = json_data.get('skills', {})
-    if isinstance(skills_section, dict) and skills_section:
-        for category_key, skills in skills_section.items():
-            category_title = category_key.replace('_', ' ').title() + " :"
-            skills_text = ", ".join(skills)
-            story.append(Paragraph(f"<b>{category_title}</b> {skills_text}", styles['Normal']))
-            story.append(Spacer(1,6))
+    # Section Compétences techniques
+    story.append(create_section_title("Compétences techniques"))
+    story.append(Spacer(1, 12))
+    if json_data.get('technical_skills'):
+        skills_text = ", ".join(json_data.get('technical_skills', []))
+        story.append(Paragraph(skills_text, styles['Normal']))
     else:
-        technical_skills = ", ".join(json_data.get('technical_skills', []))
-        story.append(Paragraph(technical_skills, styles['Normal']))
-    story.append(Spacer(1,12))
+        skills_section = json_data.get('skills', {})
+        if isinstance(skills_section, dict) and skills_section:
+            all_skills = []
+            for category_key, skills in skills_section.items():
+                all_skills.append(f"{category_key.replace('_',' ').title()} : " + ", ".join(skills))
+            story.append(Paragraph(" ; ".join(all_skills), styles['Normal']))
+    story.append(Spacer(1, 12))
     
-    # --- Section Expériences professionnelles ---
-    story.append(Paragraph("Expériences professionnelles", styles['Section']))
+    # Section Expériences professionnelles
+    story.append(create_section_title("Expériences professionnelles"))
+    story.append(Spacer(1, 12))
     for exp in json_data.get('professional_experience', []):
         date_range = exp.get('date_range', '').strip() or "Date non renseignée"
         company_name = exp.get('company_name', '').replace('\n', ' ').strip()
         mission = exp.get('mission', '').replace('\n', ' ').strip() or "Poste non renseigné"
         
-        table_data = [
-            [
-                Paragraph(f"<b>{date_range}</b>", styles['Normal']),
-                Paragraph(f"<b>{company_name}</b>", styles['Normal'])
-            ]
-        ]
-        table = Table(table_data, colWidths=[3.0*inch, 3.0*inch])
-        table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (0,0), 'LEFT'),
-            ('ALIGN', (1,0), (1,0), 'RIGHT')
+        exp_table = Table([
+            [Paragraph(f"<b>{date_range}</b>", styles['Normal']),
+             Paragraph(f"<b>{company_name}</b>", styles['Normal'])]
+        ], colWidths=[3.0 * inch, 3.0 * inch])
+        exp_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6)
         ]))
-        story.append(table)
+        story.append(exp_table)
         story.append(Paragraph(mission, styles['Bold']))
         if exp.get('tasks'):
             story.append(Paragraph("Tâches :", styles['Bold']))
@@ -311,8 +338,8 @@ def generate_pdf_from_json(json_data, output_file):
                 story.append(Paragraph("• " + task.replace('\n', ' '), styles['Normal']))
         if exp.get('tech_tools'):
             tech_tools = ", ".join(exp.get('tech_tools', []))
-            story.append(Paragraph("Outils : " + tech_tools, styles['Normal']))
-        story.append(Spacer(1,12))
+            story.append(Paragraph("<font color='turquoise'><b>Outils</b></font> : " + tech_tools, styles['Normal']))
+        story.append(Spacer(1, 12))
     
     doc.build(story, onFirstPage=draw_banner)
 
@@ -396,6 +423,8 @@ def upload_file():
         with open(json_file_path, 'r', encoding='utf-8') as f:
             json_data = json.load(f)
         logging.info("Données JSON chargées : %s", json_data)
+
+        json_data = process_skills(json_data)
 
         pdf_file_name = generate_pdf_filename(json_data, filename)
         pdf_file_path = os.path.join(tempfile.gettempdir(), pdf_file_name)
