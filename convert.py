@@ -96,13 +96,10 @@ def extract_info_to_json(text):
     - Conservez l'ordre exact des expériences.
     - Pour chaque entrée de "professional_experience", extrayez et restituez exactement
       les champs "date_range", "company_name" et "mission" (le poste) tels qu'ils apparaissent dans le CV.
-      Par exemple, si le CV contient la ligne "Novembre2023  - Janvier2025    RAJA" suivie d'une ligne avec
-      "Database Administrator (DBA MSSQL , POSTGRES )", alors "date_range" doit être "Novembre2023  - Janvier2025",
-      "company_name" doit être "RAJA" et "mission" doit être "Database Administrator (DBA MSSQL , POSTGRES )".
     - Retournez uniquement du JSON valide (aucun texte supplémentaire).
     """
     json_format = """
- {
+{
   "job_title": "",
   "full_name": "",
   "years_of_experience": "",
@@ -111,9 +108,6 @@ def extract_info_to_json(text):
     "email": "",
     "website": ""
   },
-  "technical_skills": [
-    ""
-  ],
   "education": [
     {
       "degree": "",
@@ -134,24 +128,11 @@ def extract_info_to_json(text):
       ]
     }
   ],
-  "skills": {
-    "soft_skills": [
-      ""
-    ],
-    "programming_languages": [
-      ""
-    ],
-    "frameworks_libraries": [
-      ""
-    ],
-    "ides_development_tools": [
-      ""
-    ]
-  },
+  "skills": {},
   "certifications": [
     ""
   ]
- }
+}
     """
     
     prompt = f"""
@@ -185,7 +166,6 @@ Do not include any extra symbols.
     except Exception as e:
         logging.error(f"Erreur lors de l'appel à l'API OpenAI : {e}")
         return None
-
 
 def clean_and_save_json(raw_json_text, file_path):
     """
@@ -222,6 +202,7 @@ def generate_pdf_from_json(json_data, output_file):
     styles.add(ParagraphStyle(name='Bold', parent=styles['Normal'], fontName='Helvetica-Bold'))
     
     def draw_banner(canvas_obj, doc_obj):
+        # Chargement de la bannière
         try:
             banner_path = "Background.png"
             if os.path.exists(banner_path):
@@ -230,22 +211,41 @@ def generate_pdf_from_json(json_data, output_file):
                 canvas_obj.drawImage(banner_img, 0, A4[1]-banner_height, width=A4[0], height=banner_height)
             else:
                 logging.warning(f"Bannière introuvable : {banner_path}")
+                banner_height = 2 * inch
         except Exception as e:
             logging.error(f"Erreur lors du chargement de la bannière : {e}")
-        canvas_obj.setFillColor(colors.white)
+            banner_height = 2 * inch
+
+        # Création d'un style Paragraph pour le titre
+        title_style = ParagraphStyle(
+            name='HeaderTitle',
+            fontName='Helvetica-Bold',
+            fontSize=20,
+            alignment=1,  # centré
+            leading=24,
+            textColor=colors.white
+        )
         
         job_title = json_data.get('job_title', '').replace('\n', ' ').strip() or "CV Title"
-        years_experience = str(json_data.get('years_of_experience', '')).replace('\n', ' ').strip()
-        canvas_obj.setFont("Helvetica-Bold", 20)
-        text_y_position = A4[1]-0.75*inch
-        job_title_width = canvas_obj.stringWidth(job_title, "Helvetica-Bold", 20)
-        job_title_x = (A4[0]-job_title_width)/2
-        canvas_obj.drawString(job_title_x, text_y_position, job_title)
+        title_para = Paragraph(job_title, title_style)
+        available_width = A4[0] - 2 * inch  # marge de 1 inch de chaque côté
+        w, h = title_para.wrap(available_width, 100)
+        
+        # Définir un offset pour remonter le titre et le texte A.L
+        vertical_offset = 20  # Ajustez cette valeur selon vos besoins
+        
+        title_y = A4[1] - banner_height/2 - h/2 + vertical_offset
+        title_para.drawOn(canvas_obj, (A4[0] - w)/2, title_y)
+        
         canvas_obj.setFont("Helvetica-Bold", 16)
+        years_experience = str(json_data.get('years_of_experience', '')).replace('\n', ' ').strip()
         experience_text = "A.L : " + years_experience + " XP"
         experience_width = canvas_obj.stringWidth(experience_text, "Helvetica-Bold", 16)
         experience_x = (A4[0]-experience_width)/2
-        canvas_obj.drawString(experience_x, text_y_position-40, experience_text)
+        canvas_obj.setFillColor(colors.white)
+        canvas_obj.drawString(experience_x, title_y - 20, experience_text)
+        
+        # Affichage des informations de contact
         icon_y_position = A4[1]-inch-60
         canvas_obj.setFont("Helvetica", 8)
         canvas_obj.drawString(80, icon_y_position, "01 40 76 01 49")
