@@ -1,228 +1,123 @@
-**DocumentationduSystèmede** **Traitement** **deCV**
+# Documentation du Système de Traitement de CV
 
-**1.Introduction**
+## 1. Introduction
 
-Cesystèmeestconçupour traiter desfichiersdeCV (formatsPDF,DOCX,images)
-afin
-d'enextraireautomatiquementdesinformationsstructurées.Lefluxcompletinclut:
+Ce système permet de traiter des fichiers de CV (PDF, DOCX, images) afin d'en extraire automatiquement des informations structurées. Il inclut les étapes suivantes :
 
-> • **Extractiondu** **texte**àpartir dufichier source(PDF,DOCXouimage).
->
-> •
-> **Extractiondesinformationsstructurées**vial'APIAzureOpenAI(àl'aided'un
-> promptpersonnalisé).
->
-> • **Générationd'unfichierPDF**
-> formatéavecReportLab,présentantlesdonnées extraites.
->
-> •     **Conversiondu** **PDFgénéréenDOCX**
-> grâceàlabibliothèquepdf2docx. •     **Upload**
-> **desfichiersgénérés(PDFet** **DOCX)** **surAzureBlob** **Storage** et
->
-> générationdeSASURLspour unaccèssécurisé.
+- Extraction du texte depuis le fichier source (PDF, DOCX ou image).
+- Analyse et structuration des données avec l'API Azure OpenAI.
+- Génération d'un fichier PDF formaté avec ReportLab.
+- Conversion du PDF en DOCX avec pdf2docx.
+- Upload des fichiers générés sur Azure Blob Storage avec génération de SAS URLs pour un accès sécurisé.
 
-Ladifférenceentrelesbranches« template» et« template_docx» résidedansles
-fichiersrenvoyésaprèsletraitement:
+### Différences entre les branches `template` et `template_docx`
 
-> • **Branchetemplate** :
->
-> ElleretourneuniquementlelienSASpour lefichier PDF généré. •
-> **Branchetemplate_docx** :
->
-> EllerenvoiedeuxliensSAS,l’unpour lefichier PDFetl’autrepour lefichier
-> DOCX.Cetteapprochepermetdefaciliter lesmodifications,enoffrantunaccès
-> auformatmodifiable(DOCX) enplusduformatfinalPDF.
+- **Branche `template`** : Retourne uniquement le lien SAS pour le fichier PDF généré.
+- **Branche `template_docx`** : Retourne deux liens SAS (PDF et DOCX) pour offrir un accès modifiable au format DOCX.
 
-**2.Architecture&TechnologiesUtilisées**
+---
 
-> • **Python**pour ledéveloppement.
->
-> • **Flask**:Frameworkweb pour exposer lesendpoints(API).
->
-> • **AzureOpenAI**:Pour l’extractionetlastructurationdesdonnéesàpartir
-> du texte.
->
-> • **AzureKeyVault**:Pour sécuriser etrécupérer
-> lessecrets(APIkey,endpoints, chaînedeconnexion).
->
-> • **AzureBlob** **Storage** :Pour stocker lesfichiersgénérésetfournir
-> desaccès sécurisésviaSASURLs.
->
-> • **PyMuPDF(fitz)**:Pour extraireletextedesfichiersPDF. •
-> **python-docx**:Pour lirelesfichiersDOCX.
->
-> • **pytesseract**:Pourl'extractiondetexteàpartir d'images. •
-> **ReportLab**:Pour lagénérationdufichier PDF.
->
-> • **pdf2docx**:Pour convertir lePDF généréenfichier DOCX.
->
-> • **uuid**:Pour générer desnomsdefichiersuniquesafind’éviter
-> toutecollision. • **dotenv**:Pour charger
-> lesvariablesd'environnementdepuisunfichier .env.
+## 2. Architecture & Technologies Utilisées
 
-**3.Fonctionnalités** **Principales**
+- **Python** : Langage de programmation principal.
+- **Flask** : Framework pour exposer les endpoints API.
+- **Azure OpenAI** : Extraction et structuration des données.
+- **Azure Key Vault** : Sécurisation des secrets (API key, endpoints, etc.).
+- **Azure Blob Storage** : Stockage des fichiers générés.
+- **PyMuPDF (fitz)** : Extraction de texte depuis les fichiers PDF.
+- **python-docx** : Lecture et traitement des fichiers DOCX.
+- **pytesseract** : OCR pour extraction de texte depuis des images.
+- **ReportLab** : Génération des fichiers PDF.
+- **pdf2docx** : Conversion du PDF en DOCX.
+- **uuid** : Génération de noms de fichiers uniques.
+- **dotenv** : Gestion des variables d'environnement.
 
-**ExtractionduTexte**
+---
 
-> • **extract_text(file_path)**
->
-> Permetd’extraireletexted’unfichier selonsontype(PDF,DOCXouimage). o
-> Pour lesPDF,utilisePyMuPDF.
->
-> o Pour lesDOCX,littouslesparagraphesetlescontenusdestableaux. o Pour
-> lesimages,utilisepytesseract.
+## 3. Fonctionnalités Principales
 
-**Extractiondes** **Informations** **Structurées**
+### Extraction du Texte
 
-> • **extract_info_to_json(text)**
-> Envoieletexteextraitàl’APIAzureOpenAIavecunpromptdétaillépour extraire
-> :
->
-> o Letitreduposte,lenom complet,etlesannéesd’expérience. o
-> Lescoordonnées(téléphone,e-mail,siteweb).
->
-> o Lesformations(diplômes,institutions,année).
->
-> o Lesexpériencesprofessionnelles(période,entreprise,mission,tâcheset
-> outils).
+```python
+extract_text(file_path)
+```
 
-o Lescompétencesetcertifications.
-LepromptdemandeunesortiestrictementauformatJSON.
+- **PDF** : Utilisation de PyMuPDF.
+- **DOCX** : Extraction du texte et des tableaux.
+- **Images** : OCR via pytesseract.
 
-**Nettoyage** **et** **Sauvegarde** **duJSON**
+### Extraction des Informations Structurées
 
-> • **clean_and_save_json(raw_json_text,file_path)**
-> ValideetenregistrelachaîneJSON obtenuedansunfichier.
+```python
+extract_info_to_json(text)
+```
 
-**GénérationduPDF**
+- Envoi du texte à l’API Azure OpenAI avec un prompt spécifique.
+- Extraction des données sous format JSON :
+  - **Titre du poste, nom complet, années d’expérience.**
+  - **Coordonnées (téléphone, e-mail, site web).**
+  - **Formations (diplômes, institutions, années).**
+  - **Expériences professionnelles (dates, entreprise, missions, tâches, outils).**
+  - **Compétences et certifications.**
 
-> • **generate_pdf_from_json(json_data,output_file)**
->
-> UtiliseReportLab pour créer unPDF formatéàpartir duJSON extrait.
->
-> o Intègredessectionspour laformation,lescompétences,etles
-> expériencesprofessionnelles.
->
-> o Ajouteunebannièreetdesinformationsdecontactdansl’en-tête.
+### Génération du PDF et Conversion en DOCX
 
-**ConversionPDF** **→DOCX**
+- **PDF** : Création avec ReportLab.
+- **DOCX** : Conversion via pdf2docx.
 
-> • **convert_pdf_to_docx(pdf_path,docx_path)**
-> Utiliselabibliothèquepdf2docxpour convertir lePDF généréenfichier
-> DOCX.
+### Upload vers Azure Blob Storage
 
-**Uploadvers** **Azure** **Blob** **Storage** **et** **Générationdes**
-**SASURLs**
+- **Upload des fichiers (PDF/DOCX).**
+- **Génération de SAS URLs pour un accès sécurisé.**
 
-> • **upload_to_blob_storage(file_path,blob_name)**
->
-> Upload lefichier (PDF ouDOCX) versAzureBlob Storagedanslecontainer
-> spécifié.
->
-> • **generate_sas_token(blob_name)**
->
-> GénèreuneURL avecSAStokenpour accéder aufichier demanièresécurisée.
+---
 
-**4.Endpoints** **etFluxdeTraitement**
+## 4. Endpoints et Flux de Traitement
 
-**Endpoint** **/template** **(POST)**
+### Endpoint `/template` (POST)
 
-Ceendpointgèrel’uploaddufichier etl’ensembleduprocessusdetraitement:
+1. **Validation et Sauvegarde** : Vérification et stockage temporaire du fichier.
+2. **Extraction du Texte** : Utilisation de `extract_text()`.
+3. **Extraction Structurée** : Analyse via `extract_info_to_json()`.
+4. **Génération du PDF** : Création avec `generate_pdf_from_json()`.
+5. **Conversion PDF → DOCX** : Avec `convert_pdf_to_docx()`.
+6. **Upload sur Azure Blob Storage** : Stockage sécurisé des fichiers.
+7. **Génération des SAS URLs** : Renvoi des liens sécurisés en réponse.
 
-> 1\. **Validationet** **Sauvegarde**
->
-> Lefichier uploadéestvérifié(extensionautorisée) etsauvegardé
-> temporairementavecunnom unique.
->
-> 2\. **Extractiondu** **Texte**
-> Letexteestextraitàl’aidedeextract_text().
->
-> 3\. **ExtractionStructurée**
-> Letexteestenvoyéàl’APIAzureOpenAIviaextract_info_to_json(),etlerésultat
-> estsauvegardésousformedeJSON.
->
-> 4\. **Générationdu** **PDF**
->
-> ÀpartirduJSON,unPDF estgénéréavecgenerate_pdf_from_json(). 5.
-> **ConversionPDF→DOCX**
->
-> LePDF estconvertienDOCXgrâceàconvert_pdf_to_docx(). 6. **Upload**
-> **surAzureBlob** **Storage**
->
-> LesfichiersPDF etDOCXsontuploadésversAzureBlob Storage. 7.
-> **GénérationdesSASURLs**
->
-> DesURLssécurisées(SASURLs) pour les fichiersuploadéssontgénéréeset
-> renvoyéesenréponse.
+---
 
-**5.ConfigurationetDéploiement**
+## 5. Configuration et Déploiement
 
-**Prérequis**
+### Prérequis
 
-> • Python3.x
->
-> • Bibliothèquesrequises(installablesviapip) :
->
-> o azure-keyvault-secrets,azure-identity,azure-storage-blob,openai,
-> PyMuPDF,python-docx,pytesseract,reportlab,pdf2docx,flask,flask-cors,python-dotenv,uuid
->
-> • Fichier .envcontenantlesvariablesd'environnementpour
-> lesclésetchaînesde connexion(APIkey,endpoints,connectstring,etc.)
+- **Python 3.x**
+- **Bibliothèques nécessaires** (installables via `pip`)
 
-**Exécution**
+```bash
+pip install azure-keyvault-secrets azure-identity azure-storage-blob openai \
+            PyMuPDF python-docx pytesseract reportlab pdf2docx flask flask-cors python-dotenv uuid
+```
 
-Pour lancer leserveur enmodedéveloppement,exécutez :
+- **Fichier `.env`** contenant les clés et connexions (API key, endpoints, etc.).
 
-pythonconvert.py
+### Exécution
 
-Leserveur seraaccessiblesur
-[<u>http://0.0.0.0:5001</u>.](http://0.0.0.0:5001/)
+```bash
+python convert.py
+```
 
-**6.Modifications** **ApportéesparRapportau** **Code** **Initial**
+Le serveur sera accessible sur **http://0.0.0.0:5001**.
 
-> • **GestiondesFormats** :
->
-> L’extractiondutexteaétéamélioréepour inclurelecontenudestableauxdans
-> lesfichiersDOCX.
->
-> • **Promptd’Extraction** :
-> Lepromptutilisédansextract_info_to_jsonaétéaffinépourextraireplus
-> précisémentlesinformationsrelativesauxexpériencesprofessionnelles
-> (date_range,company_name,mission,tasks,tech_tools) etautressections
-> importantes.
->
-> • **ConversionPDFversDOCX** :
->
-> LafonctionnalitédeconversionduPDF généréenfichier DOCXaétéintégréevia
-> labibliothèquepdf2docx,offrantainsiundoubleformatdesortiepour lesCV
-> traités.
->
-> • **Upload** **et** **SASURLs** :
->
-> Leprocessusd’upload versAzureBlob StorageetlagénérationdeSASURLsont
-> étémaintenusetintégrésdanslefluxcompletpour permettreunaccèssécurisé
-> auxfichiersgénérés.
->
-> • **Remarquesurl'IntégrationdeChat** **Completionset** **laGestiondu**
-> **DépassementdeTokens**:
->
-> o **Chat** **Completions** :
-> Lorsdel'intégrationdelafonction*chatCompletions*,uneerreur 400est
-> retournéeaveclemessage:
->
-> *"ThechatCompletionoperationdoesnot* *workwiththespecified* *model,*
-> *gpt-35-turbo-instruct.Pleasechoosedifferent* *modeland* *tryagain."*
-> Celasignifiequel'opérationdetype"chatcompletions"n'estpas
-> compatibleaveclemodèlegpt-35-turbo-instruct.Pour utiliser des
-> fonctionnalitésdechat,ilfautsoitchoisir unautremodèleadaptéà
-> l'opérationchat,soitutiliser l'endpointde *completions*classiquepour
-> ce modèle.
->
-> o **Gestiondu** **Dépassement** **deTokens** :
-> Desfonctionssupplémentaires(nonprésentéesdanscecode,mais
-> pouvantêtreintégrées) ontétéenvisagéespour diviser letexteen
-> morceauxsicelui-ciestvolumineuxoucontientdescaractèresspéciaux.
-> Eneffet,untexteimportantpeutimpacter lavaliditéduJSON générépar
-> l’APIoudépasser lalimitedetokensprévue.Cetteapprocheconsisteà découper
-> letexteetàtraiter chaquemorceauséparémentpour ensuite fusionner
-> lesrésultats.
+---
+
+## 6. Modifications Apportées
+
+- **Extraction améliorée** : Ajout de l’extraction du contenu des tableaux dans les DOCX.
+- **Prompt d’extraction optimisé** : Meilleure structuration des expériences professionnelles.
+- **Conversion PDF → DOCX intégrée** : Ajout de pdf2docx pour obtenir une version modifiable.
+- **Upload sécurisé** : Maintien des SAS URLs pour un accès contrôlé.
+
+### Remarque sur Chat Completions et Tokens
+
+- **Erreur 400 sur `chatCompletion` avec `gpt-35-turbo-instruct`** : Nécessité d'utiliser un modèle compatible.
+- **Gestion du dépassement de tokens** : Possibilité de découpage du texte en segments plus petits.
