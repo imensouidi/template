@@ -25,6 +25,10 @@ from pdf2docx import Converter
 from docx.shared import Inches
 from docx.shared import Pt
 
+# Nouveaux imports pour modifier le XML du DOCX
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
 
@@ -81,26 +85,6 @@ def extract_text(file_path):
         logging.error(f"Erreur lors de l'extraction du texte : {e}")
         return None
 
-def extract_certifications(text):
-    """
-    Extrait la section "CERTIFICATION" du CV en récupérant le texte situé
-    entre "CERTIFICATION" et le prochain titre (par ex. "CENTRES D’INTÉRÊT", "COMPÉTENCES" ou "EXPÉRIENCES PROFESSIONNELLES").
-    Retourne une liste de certifications, une par ligne.
-    """
-    pattern = r"CERTIFICATION\s*(.*?)\s*(CENTRES\s*D’INTÉRÊT|COMPÉTENCES|EXPÉRIENCES\s+PROFESSIONNELLES|$)"
-    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-    if match:
-        cert_text = match.group(1).strip()
-        certs = [line.strip() for line in cert_text.splitlines() if line.strip()]
-        return certs
-    return []
-
-def override_certifications_with_regex(text, json_data):
-    certs = extract_certifications(text)
-    if certs:
-        json_data["certifications"] = certs
-    return json_data
-
 def extract_info_to_json(text):
     # Le JSON attendu inclut "skills" et "certifications"
     json_format = """
@@ -139,7 +123,9 @@ You are a helpful assistant that extracts specific information from a résumé (
 IMPORTANT:
 - The text is in French. DO NOT translate it.
 - Extract the technical skills information from the CV and return it in the "skills" field.
-  If the skills are organized in categories, return a dictionary; if not, return a list of skills (each as a string).
+  If the skills are organized in categories (i.e., each category is labeled with a title followed by a colon and a list of skills),
+  return a dictionary where the keys are the category names and the values are the skills (each skill separated by a comma).
+  If the skills are not organized in categories, return them as a single comma-separated string.
 - Extract the certifications from the CV and return them in the "certifications" field as a list of strings.
 - Preserve the exact order of the professional experiences as they appear.
 - For each entry in "professional_experience", extract exactly the following fields as they appear in the CV:
@@ -178,85 +164,6 @@ def clean_and_save_json(raw_json_text, file_path):
 def generate_pdf_filename(json_data, original_filename):
     base_name, _ = os.path.splitext(original_filename)
     return f"{base_name}_output.pdf"
-
-def process_skills_string(skills_str):
-    """
-    Traite une chaîne contenant des compétences réparties sur plusieurs lignes.
-    Fusionne les lignes de la même compétence si :
-      - La ligne précédente se termine par une virgule,
-      - OU si la ligne suivante débute par une lettre minuscule,
-      - OU si la ligne suivante contient une virgule.
-    Puis, retourne une chaîne où chaque compétence est séparée par une virgule.
-    """
-    lines = [line.strip() for line in skills_str.splitlines() if line.strip()]
-    skills_list = []
-    current_skill = ""
-    for line in lines:
-        if not current_skill:
-            current_skill = line
-        else:
-            if current_skill.endswith(",") or line[0].islower() or ("," in line):
-                current_skill += " " + line
-            else:
-                skills_list.append(current_skill)
-                current_skill = line
-    if current_skill:
-        skills_list.append(current_skill)
-    # Nettoyer les espaces superflus et supprimer les éventuels deux-points à la fin
-    skills_list = [skill.rstrip(":").strip() for skill in skills_list]
-    return ", ".join(skills_list)
-
-def process_skills(json_data):
-    """
-    Traite le champ "skills" selon son format :
-      - Si c'est une chaîne, on vérifie si elle contient des catégories séparées par ":".
-        Si après les ":" aucune valeur n'est présente (ex. "Catégorie :" sans contenu),
-        on extrait uniquement la partie avant le ":" et on traite le tout comme une liste simple.
-      - Si c'est une liste, on joint les éléments avec des virgules.
-      - Si c'est un dictionnaire, on applique ce traitement à chacune des catégories.
-    """
-    skills = json_data.get("skills", None)
-    if skills is None:
-        return json_data
-
-    if isinstance(skills, str):
-        if ":" in skills:
-            lines = [line.strip() for line in skills.splitlines() if line.strip()]
-            # Vérifier s'il existe au moins une ligne où le contenu après ":" n'est pas vide
-            has_non_empty_value = any(
-                len(line.split(":", 1)[1].strip()) > 0 for line in lines if ":" in line
-            )
-            if has_non_empty_value:
-                # Traiter comme dictionnaire
-                skills_dict = {}
-                for line in lines:
-                    if ":" in line:
-                        category, value = line.split(":", 1)
-                        skills_dict[category.strip()] = value.strip()
-                    else:
-                        if "Autres" not in skills_dict:
-                            skills_dict["Autres"] = []
-                        skills_dict["Autres"].append(line.strip())
-                json_data["skills"] = skills_dict
-            else:
-                # Aucune valeur après ":", on extrait uniquement la partie avant le ":"
-                cleaned_lines = [line.split(":", 1)[0].strip() if ":" in line else line for line in lines]
-                json_data["skills"] = ", ".join(cleaned_lines)
-        else:
-            # Si pas de ":", traiter comme une liste simple
-            lines = [line.strip() for line in skills.splitlines() if line.strip()]
-            json_data["skills"] = ", ".join(lines)
-    elif isinstance(skills, list):
-        json_data["skills"] = ", ".join(skills)
-    elif isinstance(skills, dict):
-        for key, value in skills.items():
-            if isinstance(value, str):
-                # On peut réutiliser la fonction process_skills_string pour nettoyer la chaîne
-                skills[key] = process_skills_string(value)
-            elif isinstance(value, list):
-                skills[key] = ", ".join(value)
-    return json_data
-
 
 def generate_pdf_from_json(json_data, output_file):
     doc = SimpleDocTemplate(output_file, pagesize=A4)
@@ -358,7 +265,6 @@ def generate_pdf_from_json(json_data, output_file):
             ]))
             story.append(edu_table)
             story.append(Spacer(1, 12))
-    # Certifications : affichage en gras sur une seule colonne
     if json_data.get('certifications'):
         certification_rows = [[Paragraph(cert, styles['Bold'])] for cert in json_data.get('certifications', [])]
         if certification_rows:
@@ -377,12 +283,19 @@ def generate_pdf_from_json(json_data, output_file):
     if isinstance(skills_section, dict) and skills_section:
         for category_key, skills in skills_section.items():
             cat_title = category_key.replace('_', ' ').title()
-            # Afficher la clé et les valeurs sur la même ligne
-            story.append(Paragraph(f"<b>{cat_title} :</b> {skills}", styles['Normal']))
+            if isinstance(skills, str):
+                skills = skills.strip()
+            if skills:
+                text = f"<b>{cat_title} :</b> {skills}"
+            else:
+                text = f"<b>{cat_title}</b>"
+            story.append(Paragraph(text, styles['Normal']))
             story.append(Spacer(1, 6))
     elif isinstance(skills_section, str) and skills_section:
-        # Afficher la clé par défaut et les compétences sur la même ligne
-        story.append(Paragraph(f"{skills_section}", styles['Normal']))
+        text = skills_section.strip()
+        if text.endswith(":") and len(text.split(":")[-1].strip()) == 0:
+            text = text[:-1].strip()
+        story.append(Paragraph(text, styles['Normal']))
     else:
         story.append(Paragraph("Aucune compétence technique extraite.", styles['Normal']))
     story.append(Spacer(1, 12))
@@ -417,70 +330,50 @@ def generate_pdf_from_json(json_data, output_file):
     
     doc.build(story, onFirstPage=draw_banner)
 
+# --- Modification de la partie DOCX uniquement ---
+def insert_blank_paragraph_before(target_paragraph, space_before=150):
+    new_p = OxmlElement("w:p")
+    # Ajout d'un run contenant un espace insécable pour que le paragraphe ne soit pas vide
+    r = OxmlElement("w:r")
+    t = OxmlElement("w:t")
+    t.text = "\u00A0"
+    r.append(t)
+    new_p.append(r)
+    pPr = OxmlElement("w:pPr")
+    spacing = OxmlElement("w:spacing")
+    spacing.set(qn("w:before"), str(space_before))
+    pPr.append(spacing)
+    new_p.insert(0, pPr)
+    target_paragraph._p.addprevious(new_p)
 
 
 def remove_blank_paragraphs(docx_file_path):
     doc = Document(docx_file_path)
-    # Parcourir une copie de la liste pour éviter des problèmes lors de la suppression
     for paragraph in list(doc.paragraphs):
-        # Si le texte est vide…
         if not paragraph.text.strip():
-            # Vérifier si le paragraphe contient des images (éléments "w:drawing")
             if paragraph._element.xpath('.//w:drawing'):
-                continue  # On ne supprime pas le paragraphe s'il contient des images
-            # Sinon, supprimer le paragraphe vide
+                continue
             p = paragraph._element
             p.getparent().remove(p)
     doc.save(docx_file_path)
-
 
 def convert_pdf_to_docx(pdf_path, docx_path):
     try:
         cv = Converter(pdf_path)
         cv.convert(docx_path, start=0)
         cv.close()
-        remove_blank_paragraphs(docx_path)
+        remove_blank_paragraphs(docx_file_path=docx_path)
         logging.info(f"Conversion réussie : {pdf_path} -> {docx_path}")
         return True
     except Exception as e:
         logging.error(f"Erreur lors de la conversion du PDF en DOCX : {e}")
         return False
 
-
-
 def adjust_docx_top_margin(docx_file_path, top_margin_inch=0.5):
-    
-    
     doc = Document(docx_file_path)
     for section in doc.sections:
         section.top_margin = Inches(top_margin_inch)
     doc.save(docx_file_path)
-
-
-def adjust_docx_spacing(docx_file_path):
-    doc = Document(docx_file_path)
-    
-    for paragraph in doc.paragraphs:
-        raw_text = paragraph.text.strip()  # texte original
-        text = raw_text.lower()            # texte en minuscules pour la comparaison
-
-        # Débogage éventuel : décommenter pour voir les contenus
-        # print(f"DEBUG: [{raw_text}]")
-
-        # 1. Ajouter de l'espace APRÈS le bloc contacts
-        if ("heptasys@heptasys.com" in text 
-            or "01 40 76 01 49" in text 
-            or "www.heptasys.com" in text):
-            paragraph.paragraph_format.space_after = Pt(50)
-
-        # 2. Ajouter de l'espace AVANT "Formation & Certifications"
-        #    On recherche "formation" et "certification" n'importe où dans le paragraphe
-        #    afin de gérer d'éventuelles variations d'accents, majuscules, etc.
-        if "formation" in text and "certification" in text:
-            paragraph.paragraph_format.space_before = Pt(100)  # Ajustez la valeur à vos besoins
-
-    doc.save(docx_file_path)
-
 
 def upload_to_blob_storage(file_path, blob_name):
     try:
@@ -556,9 +449,6 @@ def upload_file():
         with open(json_file_path, 'r', encoding='utf-8') as f:
             json_data = json.load(f)
         logging.info("Données JSON chargées : %s", json_data)
-        json_data = process_skills(json_data)
-        # Remplacer les certifications par une extraction directe par regex
-        json_data = override_certifications_with_regex(extracted_text, json_data)
         pdf_file_name = generate_pdf_filename(json_data, filename)
         pdf_file_path = os.path.join(tempfile.gettempdir(), pdf_file_name)
         generate_pdf_from_json(json_data, pdf_file_path)
@@ -570,7 +460,7 @@ def upload_file():
             return jsonify({"error": "Échec de la conversion du PDF en DOCX"}), 500
         logging.info(f"DOCX généré à {docx_file_path}")
         adjust_docx_top_margin(docx_file_path, top_margin_inch=0.5)
-        adjust_docx_spacing(docx_file_path)
+        
         logging.info("Marge supérieure et espacement ajustés dans le fichier DOCX.")
         upload_to_blob_storage(pdf_file_path, pdf_file_name)
         upload_to_blob_storage(docx_file_path, docx_file_name)
